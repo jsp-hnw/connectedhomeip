@@ -1,18 +1,16 @@
+
 # start with Ubuntu 20.04LTS
 FROM ubuntu:focal
 LABEL org.opencontainers.image.source https://github.com/project-chip/connectedhomeip
 
 VOLUME "/var/source"
 
-ARG TARGETPLATFORM
+ARG TARGETPLATFORM=linux/arm32
 
 # Ensure TARGETPLATFORM is set
 RUN case ${TARGETPLATFORM} in \
-    "linux/amd64") \
-    echo "Building for linux/amd64" \
-    ;; \
-    "linux/arm64") \
-    echo "Building for linux/arm64" \
+    "linux/arm32") \
+    echo "Building for linux/arm32" \
     ;; \
     *) \
     if [ -z "$TARGETPLATFORM" ] ;\
@@ -109,22 +107,14 @@ RUN set -x \
     && : # last line
 
 # Cmake v3.23.1
-ENV CMAKE_PLATFORM_VERSION=
-RUN case ${TARGETPLATFORM} in \
-    "linux/amd64") CMAKE_PLATFORM_VERSION="x86_64";; \
-    "linux/arm64") CMAKE_PLATFORM_VERSION="aarch64";; \
-    *) \
-    test -n "$TARGETPLATFORM" \
-    echo "Unsupported platform ${TARGETPLATFORM}" \
-    && return 1 ;\
-    ;; \
-    esac \
-    && set -x \
-    && (cd /tmp \
-    && wget --progress=dot:giga https://github.com/Kitware/CMake/releases/download/v3.23.1/cmake-3.23.1-linux-$CMAKE_PLATFORM_VERSION.sh \
-    && sh cmake-3.23.1-linux-$CMAKE_PLATFORM_VERSION.sh --exclude-subdir --prefix=/usr/local \
-    && rm -rf cmake-3.23.1-linux-$CMAKE_PLATFORM_VERSION.sh) \
-    && exec bash \
+RUN set -x \
+    && cd /tmp \
+    && wget --progress=dot:giga https://github.com/Kitware/CMake/releases/download/v3.23.1/cmake-3.23.1.tar.gz \
+    && tar xvfz cmake-3.23.1.tar.gz \
+    && cd cmake-3.23.1 \
+    && ./bootstrap \
+    && make -j3 \
+    && make install \
     && : # last line
 
 # Python 3.9 and PIP
@@ -139,22 +129,22 @@ RUN set -x \
     && rm -rf /var/lib/apt/lists/ \
     && : # last line
 
-RUN set -x \
-    && pip3 install --no-cache-dir \
-    attrs \
-    click \
-    coloredlogs \
-    cxxfilt \
-    flake8 \
-    future \
-    ghapi \
-    mobly \
-    pandas \
-    portpicker \
-    pygit \
-    PyGithub \
-    tabulate \
-    && : # last line
+RUN set -x && pip3 install --no-cache-dir attrs
+RUN set -x && pip3 install --no-cache-dir click
+RUN set -x && pip3 install --no-cache-dir coloredlogs
+RUN set -x && pip3 install --no-cache-dir cxxfilt
+RUN set -x && pip3 install --no-cache-dir flake8
+RUN set -x && pip3 install --no-cache-dir future
+RUN set -x && pip3 install --no-cache-dir ghapi 
+RUN set -x && pip3 install --no-cache-dir mobly
+RUN set -x && pip3 install numpy --config-settings=setup-args="-Dallow-noblas=true"  
+RUN set -x && pip3 install --no-cache-dir pandas 
+RUN set -x && pip3 install --no-cache-dir portpicker 
+RUN set -x && pip3 install --no-cache-dir pygit
+RUN set -x && curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y \
+    && . /root/.bashrc \
+    && pip3 install --no-cache-dir PyGithub
+RUN set -x && pip3 install --no-cache-dir tabulate
 
 # build and install gn
 RUN set -x \
@@ -173,7 +163,7 @@ RUN set -x \
     && mkdir -p bloaty/build \
     && cd bloaty/build \
     && cmake ../ \
-    && make -j8 \
+    && make -j1 \
     && make install \
     && cd ../.. \
     && rm -rf bloaty \
@@ -189,7 +179,7 @@ RUN set -x \
     && mkdir -p include-what-you-use/build \
     && cd include-what-you-use/build \
     && cmake -DCMAKE_INSTALL_PREFIX=/usr -DCMAKE_PREFIX_PATH=/usr/lib/llvm-12 -DIWYU_LINK_CLANG_DYLIB=OFF .. \
-    && make -j8 \
+    && make -j1 \
     && make install \
     # Save clang-12 files, so we can restore them after build dependencies cleanup
     && tar -cf clang-12-files.tar $(dpkg -L libclang-common-12-dev |grep /include) /usr/lib/llvm-12/lib/libLLVM-12.so.1 \
@@ -221,8 +211,8 @@ RUN case ${TARGETPLATFORM} in \
     && mv glib/build-image/usr/local/lib/x86_64-linux-gnu/lib* $LD_LIBRARY_PATH_TSAN \
     && rm -rf glib \
     ;; \
-    "linux/arm64") \
-    echo "ARM64 unsupported with TSAN" \
+    "linux/arm32") \
+    echo "ARM32 unsupported with TSAN" \
     ;; \
     *) \
     echo "Unsupported platform ${TARGETPLATFORM}" \
@@ -240,8 +230,7 @@ RUN case ${TARGETPLATFORM} in \
 ENV CHIP_NODE_VERSION=v16.13.2
 ENV NODE_PLATFORM_VERSION=
 RUN case ${TARGETPLATFORM} in \
-    "linux/amd64") NODE_PLATFORM_VERSION=x64;; \
-    "linux/arm64") NODE_PLATFORM_VERSION=arm64;; \
+    "linux/arm32") NODE_PLATFORM_VERSION=armv7l;; \
     *) \
     test -n "$TARGETPLATFORM" \
     echo "Unsupported platform ${TARGETPLATFORM}" \

@@ -4,7 +4,7 @@ LABEL org.opencontainers.image.source https://github.com/project-chip/connectedh
 
 VOLUME "/var/source"
 
-ARG TARGETPLATFORM
+ARG TARGETPLATFORM=linux/arm64
 
 # Ensure TARGETPLATFORM is set
 RUN case ${TARGETPLATFORM} in \
@@ -25,7 +25,6 @@ RUN case ${TARGETPLATFORM} in \
     fi \
     ;; \
     esac
-
 
 # base build and check tools and libraries layer
 RUN set -x \
@@ -173,7 +172,7 @@ RUN set -x \
     && mkdir -p bloaty/build \
     && cd bloaty/build \
     && cmake ../ \
-    && make -j8 \
+    && make -j3 \
     && make install \
     && cd ../.. \
     && rm -rf bloaty \
@@ -189,7 +188,7 @@ RUN set -x \
     && mkdir -p include-what-you-use/build \
     && cd include-what-you-use/build \
     && cmake -DCMAKE_INSTALL_PREFIX=/usr -DCMAKE_PREFIX_PATH=/usr/lib/llvm-12 -DIWYU_LINK_CLANG_DYLIB=OFF .. \
-    && make -j8 \
+    && make -j1 \
     && make install \
     # Save clang-12 files, so we can restore them after build dependencies cleanup
     && tar -cf clang-12-files.tar $(dpkg -L libclang-common-12-dev |grep /include) /usr/lib/llvm-12/lib/libLLVM-12.so.1 \
