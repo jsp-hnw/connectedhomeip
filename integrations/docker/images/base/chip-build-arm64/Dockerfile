@@ -1,5 +1,5 @@
 # start with Ubuntu 20.04LTS
-FROM ubuntu:focal
+FROM ubuntu:jammy
 LABEL org.opencontainers.image.source https://github.com/project-chip/connectedhomeip
 
 VOLUME "/var/source"
@@ -82,9 +82,9 @@ RUN set -x \
     openjdk-8-jdk \
     pkg-config \
     python-is-python3 \
-    python3.9 \
-    python3.9-dev \
-    python3.9-venv \
+    #python3.9 \
+    #python3.9-dev \
+    #python3.9-venv \
     rsync \
     shellcheck \
     strace \
@@ -125,6 +125,14 @@ RUN case ${TARGETPLATFORM} in \
     && rm -rf cmake-3.23.1-linux-$CMAKE_PLATFORM_VERSION.sh) \
     && exec bash \
     && : # last line
+
+RUN set -x \    
+    && apt-get update \
+    && DEBIAN_FRONTEND=noninteractive apt-get install -fy --fix-missing software-properties-common \
+    && add-apt-repository -y ppa:deadsnakes/ppa \
+    && apt update \
+    && DEBIAN_FRONTEND=noninteractive apt-get install -fy --fix-missing \
+    python3.9 python3.9-dev python3.9-venv
 
 # Python 3.9 and PIP
 RUN set -x \

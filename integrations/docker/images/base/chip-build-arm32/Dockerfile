@@ -1,6 +1,6 @@
 
 # start with Ubuntu 20.04LTS
-FROM ubuntu:focal
+FROM ubuntu:jammy
 LABEL org.opencontainers.image.source https://github.com/project-chip/connectedhomeip
 
 VOLUME "/var/source"
@@ -82,8 +82,8 @@ RUN set -x \
     pkg-config \
     python-is-python3 \
     python3.9 \
-    python3.9-dev \
-    python3.9-venv \
+    #python3.9-dev \
+    #python3.9-venv \
     rsync \
     shellcheck \
     strace \
@@ -113,9 +113,17 @@ RUN set -x \
     && tar xvfz cmake-3.23.1.tar.gz \
     && cd cmake-3.23.1 \
     && ./bootstrap \
-    && make -j3 \
+    && make -j12 \
     && make install \
     && : # last line
+
+RUN set -x \    
+    && apt-get update \
+    && DEBIAN_FRONTEND=noninteractive apt-get install -fy --fix-missing software-properties-common \
+    && add-apt-repository -y ppa:deadsnakes/ppa \
+    && apt update \
+    && DEBIAN_FRONTEND=noninteractive apt-get install -fy --fix-missing \
+    python3.9 python3.9-dev python3.9-venv
 
 # Python 3.9 and PIP
 RUN set -x \
@@ -163,7 +171,7 @@ RUN set -x \
     && mkdir -p bloaty/build \
     && cd bloaty/build \
     && cmake ../ \
-    && make -j1 \
+    && make -j12 \
     && make install \
     && cd ../.. \
     && rm -rf bloaty \
@@ -179,7 +187,7 @@ RUN set -x \
     && mkdir -p include-what-you-use/build \
     && cd include-what-you-use/build \
     && cmake -DCMAKE_INSTALL_PREFIX=/usr -DCMAKE_PREFIX_PATH=/usr/lib/llvm-12 -DIWYU_LINK_CLANG_DYLIB=OFF .. \
-    && make -j1 \
+    && make -j12 \
     && make install \
     # Save clang-12 files, so we can restore them after build dependencies cleanup
     && tar -cf clang-12-files.tar $(dpkg -L libclang-common-12-dev |grep /include) /usr/lib/llvm-12/lib/libLLVM-12.so.1 \
