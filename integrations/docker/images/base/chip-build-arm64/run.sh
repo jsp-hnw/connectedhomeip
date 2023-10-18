@@ -108,5 +108,10 @@ for arg in "$@"; do
 done
 
 #docker pull "$FULL_IMAGE_NAME" || "$here"/build.sh
+#RUN_DIR_HOST=$HOME
+#RUN_DIR_DOCKER=$HOME
 
-docker run --platform linux/arm64 -it "${runargs[@]}" --rm --mount "source=/var/run/docker.sock,target=/var/run/docker.sock,type=bind" -w "$RUN_DIR" -v "$RUN_DIR:$RUN_DIR" "$IMAGE" "$@"
+RUN_DIR_HOST="$here/../../../../../"
+RUN_DIR_DOCKER="/connectedhomeip/"
+mkdir -p $HOME/.docker_root
+docker run --platform linux/arm64 -it "${runargs[@]}" --rm --mount "source=/var/run/docker.sock,target=/var/run/docker.sock,type=bind" -v "$HOME/.docker_root:/root" -w "$RUN_DIR_DOCKER" -v "$RUN_DIR_HOST:$RUN_DIR_DOCKER" "$IMAGE" "$@"
