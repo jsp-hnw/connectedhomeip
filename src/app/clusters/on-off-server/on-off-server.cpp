@@ -44,6 +44,7 @@
 #include <platform/CHIPDeviceLayer.h>
 #include <platform/PlatformManager.h>
 
+
 using namespace chip;
 using namespace chip::app::Clusters;
 using namespace chip::app::Clusters::OnOff;
@@ -441,6 +442,9 @@ EmberAfStatus OnOffServer::getOnOffValue(chip::EndpointId endpoint, bool * curre
  * @param command   Ver.: always
  * @param initiatedByLevelChange   Ver.: always
  */
+ 
+#include <fstream>
+#include <string>
 EmberAfStatus OnOffServer::setOnOffValue(chip::EndpointId endpoint, chip::CommandId command, bool initiatedByLevelChange)
 {
     EmberAfStatus status;
@@ -471,6 +475,14 @@ EmberAfStatus OnOffServer::setOnOffValue(chip::EndpointId endpoint, chip::Comman
     // should update the on/off attribute before kicking off level change, if we are
     // turning off the light, we should do the opposite, that is kick off level change
     // before updating the on/off attribute.
+    std::ofstream fout;
+	fout.open("/tmp/matterled", std::ofstream::out);
+	if (fout.is_open())
+	{
+		fout << "";
+		fout.seekp(0, std::ios::beg);
+	}
+
     if (newValue) // Set On
     {
         if (SupportsLightingApplications(endpoint))
@@ -502,6 +514,12 @@ EmberAfStatus OnOffServer::setOnOffValue(chip::EndpointId endpoint, chip::Comman
             ChipLogProgress(Zcl, "ERR: writing on/off %x", status);
             return status;
         }
+
+		// HOST LED ON
+  	    if (fout.is_open())	
+		{
+		   fout << "ON";
+		}
 
 #ifdef EMBER_AF_PLUGIN_LEVEL_CONTROL
         // If initiatedByLevelChange is false, then we assume that the level change
@@ -549,6 +567,12 @@ EmberAfStatus OnOffServer::setOnOffValue(chip::EndpointId endpoint, chip::Comman
                 return status;
             }
 
+			// HOST LED OFF
+			if (fout.is_open()) 
+			{
+			   fout << "OFF";
+			}
+
             if (SupportsLightingApplications(endpoint))
             {
                 ChipLogProgress(Zcl, "Off completed. reset OnTime to  0");
@@ -556,6 +580,12 @@ EmberAfStatus OnOffServer::setOnOffValue(chip::EndpointId endpoint, chip::Comman
             }
         }
     }
+
+//  close matter led Filepointer
+	if (fout.is_open()) 
+	{
+	  fout.close();
+	}
 
 #ifdef EMBER_AF_PLUGIN_SCENES
     //  the scene has been changed (the value of on/off has changed) so
