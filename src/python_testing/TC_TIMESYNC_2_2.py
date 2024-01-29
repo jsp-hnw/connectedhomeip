@@ -29,6 +29,9 @@ class TC_TIMESYNC_2_2(MatterBaseTest):
         cluster = Clusters.Objects.TimeSynchronization
         return await self.read_single_attribute_check_success(endpoint=endpoint, cluster=cluster, attribute=attribute)
 
+    def pics_TC_TIMESYNC_2_2(self) -> list[str]:
+        return ["TIMESYNC.S"]
+
     @async_test_body
     async def test_TC_TIMESYNC_2_2(self):
 
@@ -43,9 +46,10 @@ class TC_TIMESYNC_2_2(MatterBaseTest):
         self.print_step(2, "Read UTCTime attribute")
         utc_dut_initial = await self.read_ts_attribute_expect_success(endpoint=endpoint, attribute=attributes.UTCTime)
         th_utc = utc_time_in_matter_epoch()
+
+        code = 0
         try:
             await self.send_single_cmd(cmd=time_cluster.Commands.SetUTCTime(UTCTime=th_utc, granularity=time_cluster.Enums.GranularityEnum.kMillisecondsGranularity), endpoint=endpoint)
-            code = 0
         except InteractionModelError as e:
             # The python layer discards the cluster specific portion of the status IB, so for now we just expect a generic FAILURE error
             # see #26521
@@ -63,6 +67,7 @@ class TC_TIMESYNC_2_2(MatterBaseTest):
                             "Granularity out of expected range")
         asserts.assert_not_equal(granularity_dut, time_cluster.Enums.GranularityEnum.kNoTimeGranularity)
 
+        self.print_step(4, "Read UTC time")
         th_utc = utc_time_in_matter_epoch()
         utc_dut = await self.read_ts_attribute_expect_success(endpoint=endpoint, attribute=attributes.UTCTime)
         asserts.assert_is_not(utc_dut, NullValue, "Received null value for UTCTime after set")
@@ -71,6 +76,12 @@ class TC_TIMESYNC_2_2(MatterBaseTest):
         else:
             tolerance = timedelta(minutes=1)
         compare_time(received=utc_dut, utc=th_utc, tolerance=tolerance)
+
+        self.print_step(5, "Read time source")
+        if self.check_pics("TIMESYNC.S.A0002"):
+            source = await self.read_ts_attribute_expect_success(endpoint=endpoint, attribute=attributes.TimeSource)
+            if utc_dut_initial is NullValue:
+                asserts.assert_equal(source, Clusters.Objects.TimeSynchronization.Enums.TimeSourceEnum.kAdmin)
 
 
 if __name__ == "__main__":

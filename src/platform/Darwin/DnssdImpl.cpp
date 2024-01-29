@@ -31,7 +31,7 @@ using namespace chip::Dnssd::Internal;
 
 namespace {
 
-constexpr const char * kLocalDot = "local.";
+constexpr char kLocalDot[] = "local.";
 
 constexpr DNSServiceFlags kRegisterFlags        = kDNSServiceFlagsNoAutoRename;
 constexpr DNSServiceFlags kBrowseFlags          = 0;
@@ -131,7 +131,7 @@ std::shared_ptr<uint32_t> GetCounterHolder(const char * name)
 namespace chip {
 namespace Dnssd {
 
-MdnsContexts MdnsContexts::sInstance;
+Global<MdnsContexts> MdnsContexts::sInstance;
 
 namespace {
 

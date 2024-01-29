@@ -32,6 +32,8 @@ import androidx.lifecycle.lifecycleScope
 import chip.devicecontroller.AttestationInfo
 import chip.devicecontroller.ChipDeviceController
 import chip.devicecontroller.DeviceAttestationDelegate
+import chip.devicecontroller.ICDDeviceInfo
+import chip.devicecontroller.ICDRegistrationInfo
 import chip.devicecontroller.NetworkCredentials
 import com.google.chip.chiptool.ChipClient
 import com.google.chip.chiptool.GenericChipDeviceListener
@@ -251,7 +253,7 @@ class DeviceProvisioningFragment : Fragment() {
     override fun onCommissioningComplete(nodeId: Long, errorCode: Int) {
       if (errorCode == STATUS_PAIRING_SUCCESS) {
         FragmentUtil.getHost(this@DeviceProvisioningFragment, Callback::class.java)
-          ?.onCommissioningComplete(0)
+          ?.onCommissioningComplete(0, nodeId)
       } else {
         showMessage(R.string.rendezvous_over_ble_pairing_failure_text)
         FragmentUtil.getHost(this@DeviceProvisioningFragment, Callback::class.java)
@@ -284,12 +286,40 @@ class DeviceProvisioningFragment : Fragment() {
     override fun onError(error: Throwable?) {
       Log.d(TAG, "onError: $error")
     }
+
+    override fun onICDRegistrationInfoRequired() {
+      Log.d(TAG, "onICDRegistrationInfoRequired")
+      deviceController.updateCommissioningICDRegistrationInfo(
+        ICDRegistrationInfo.newBuilder().build()
+      )
+    }
+
+    override fun onICDRegistrationComplete(errorCode: Int, icdDeviceInfo: ICDDeviceInfo) {
+      Log.d(
+        TAG,
+        "onICDRegistrationComplete - errorCode: $errorCode, symmetricKey : ${icdDeviceInfo.symmetricKey.toHex()}, icdDeviceInfo : $icdDeviceInfo"
+      )
+      requireActivity().runOnUiThread {
+        Toast.makeText(
+            requireActivity(),
+            getString(
+              R.string.icd_registration_completed,
+              icdDeviceInfo.userActiveModeTriggerHint.toString()
+            ),
+            Toast.LENGTH_LONG
+          )
+          .show()
+      }
+    }
   }
+
+  private fun ByteArray.toHex(): String =
+    joinToString(separator = "") { eachByte -> "%02x".format(eachByte) }
 
   /** Callback from [DeviceProvisioningFragment] notifying any registered listeners. */
   interface Callback {
     /** Notifies that commissioning has been completed. */
-    fun onCommissioningComplete(code: Int)
+    fun onCommissioningComplete(code: Int, nodeId: Long = 0L)
   }
 
   companion object {

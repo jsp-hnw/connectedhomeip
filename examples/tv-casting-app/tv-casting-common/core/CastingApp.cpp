@@ -18,6 +18,10 @@
 
 #include "CastingApp.h"
 
+#include "support/CastingStore.h"
+#include "support/ChipDeviceEventHandler.h"
+
+#include <app/InteractionModelEngine.h>
 #include <app/clusters/bindings/BindingManager.h>
 #include <app/server/Server.h>
 #include <credentials/DeviceAttestationCredsProvider.h>
@@ -44,7 +48,8 @@ CastingApp * CastingApp::GetInstance()
 
 CHIP_ERROR CastingApp::Initialize(const AppParameters & appParameters)
 {
-    VerifyOrReturnError(mState == UNINITIALIZED, CHIP_ERROR_INCORRECT_STATE);
+    ChipLogProgress(Discovery, "CastingApp::Initialize() called");
+    VerifyOrReturnError(mState == CASTING_APP_UNINITIALIZED, CHIP_ERROR_INCORRECT_STATE);
     VerifyOrReturnError(appParameters.GetCommissionableDataProvider() != nullptr, CHIP_ERROR_INVALID_ARGUMENT);
     VerifyOrReturnError(appParameters.GetDeviceAttestationCredentialsProvider() != nullptr, CHIP_ERROR_INVALID_ARGUMENT);
     VerifyOrReturnError(appParameters.GetServerInitParamsProvider() != nullptr, CHIP_ERROR_INVALID_ARGUMENT);
@@ -74,14 +79,15 @@ CHIP_ERROR CastingApp::Initialize(const AppParameters & appParameters)
     }
 #endif // CHIP_ENABLE_ROTATING_DEVICE_ID
 
-    mState = NOT_RUNNING; // initialization done, set state to NOT_RUNNING
+    mState = CASTING_APP_NOT_RUNNING; // initialization done, set state to NOT_RUNNING
 
     return CHIP_NO_ERROR;
 }
 
 CHIP_ERROR CastingApp::Start()
 {
-    VerifyOrReturnError(mState == NOT_RUNNING, CHIP_ERROR_INCORRECT_STATE);
+    ChipLogProgress(Discovery, "CastingApp::Start() called");
+    VerifyOrReturnError(mState == CASTING_APP_NOT_RUNNING, CHIP_ERROR_INCORRECT_STATE);
 
     // start Matter server
     chip::ServerInitParams * serverInitParams = mAppParameters->GetServerInitParamsProvider()->Get();
@@ -91,12 +97,30 @@ CHIP_ERROR CastingApp::Start()
     // perform post server startup registrations
     ReturnErrorOnFailure(PostStartRegistrations());
 
+    // reconnect (or verify connection) to the CastingPlayer that the app was connected to before being stopped, if any
+    if (CastingPlayer::GetTargetCastingPlayer() != nullptr)
+    {
+        CastingPlayer::GetTargetCastingPlayer()->VerifyOrEstablishConnection(
+            [](CHIP_ERROR err, matter::casting::core::CastingPlayer * castingPlayer) {
+                if (err != CHIP_NO_ERROR)
+                {
+                    ChipLogError(AppServer, "CastingApp::Start Could not reconnect to CastingPlayer %" CHIP_ERROR_FORMAT,
+                                 err.Format());
+                }
+                else
+                {
+                    ChipLogProgress(AppServer, "CastingApp::Start Reconnected to CastingPlayer(ID: %s)", castingPlayer->GetId());
+                }
+            });
+    }
+
     return CHIP_NO_ERROR;
 }
 
 CHIP_ERROR CastingApp::PostStartRegistrations()
 {
-    VerifyOrReturnError(mState == NOT_RUNNING, CHIP_ERROR_INCORRECT_STATE);
+    ChipLogProgress(Discovery, "CastingApp::PostStartRegistrations() called");
+    VerifyOrReturnError(mState == CASTING_APP_NOT_RUNNING, CHIP_ERROR_INCORRECT_STATE);
     auto & server = chip::Server::GetInstance();
 
     // TODO: Set CastingApp as AppDelegate
@@ -106,29 +130,41 @@ CHIP_ERROR CastingApp::PostStartRegistrations()
     chip::BindingManager::GetInstance().Init(
         { &server.GetFabricTable(), server.GetCASESessionManager(), &server.GetPersistentStorage() });
 
-    // TODO: Set FabricDelegate
-    // chip::Server::GetInstance().GetFabricTable().AddFabricDelegate(&mPersistenceManager);
+    // Set FabricDelegate
+    chip::Server::GetInstance().GetFabricTable().AddFabricDelegate(support::CastingStore::GetInstance());
 
-    // TODO: Add DeviceEvent Handler
-    // ReturnErrorOnFailure(DeviceLayer::PlatformMgrImpl().AddEventHandler(DeviceEventCallback, 0));
+    // Register DeviceEvent Handler
+    ReturnErrorOnFailure(chip::DeviceLayer::PlatformMgrImpl().AddEventHandler(ChipDeviceEventHandler::Handle, 0));
 
-    mState = RUNNING; // CastingApp started successfully, set state to RUNNING
+    mState = CASTING_APP_RUNNING; // CastingApp started successfully, set state to RUNNING
     return CHIP_NO_ERROR;
 }
 
 CHIP_ERROR CastingApp::Stop()
 {
-    VerifyOrReturnError(mState == RUNNING, CHIP_ERROR_INCORRECT_STATE);
-
-    // TODO: add logic to capture CastingPlayers that we are currently connected to, so we can automatically reconnect with them on
-    // Start() again
+    ChipLogProgress(Discovery, "CastingApp::Stop() called");
+    VerifyOrReturnError(mState == CASTING_APP_RUNNING, CHIP_ERROR_INCORRECT_STATE);
 
     // Shutdown the Matter server
     chip::Server::GetInstance().Shutdown();
 
-    mState = NOT_RUNNING; // CastingApp stopped successfully, set state to NOT_RUNNING
+    mState = CASTING_APP_NOT_RUNNING; // CastingApp stopped successfully, set state to NOT_RUNNING
 
-    return CHIP_ERROR_NOT_IMPLEMENTED;
+    return CHIP_NO_ERROR;
+}
+
+CHIP_ERROR CastingApp::ShutdownAllSubscriptions()
+{
+    VerifyOrReturnError(mState == CASTING_APP_RUNNING, CHIP_ERROR_INCORRECT_STATE);
+
+    chip::app::InteractionModelEngine::GetInstance()->ShutdownAllSubscriptions();
+
+    return CHIP_NO_ERROR;
+}
+
+CHIP_ERROR CastingApp::ClearCache()
+{
+    return support::CastingStore::GetInstance()->DeleteAll();
 }
 
 }; // namespace core

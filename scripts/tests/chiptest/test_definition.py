@@ -16,6 +16,7 @@
 import logging
 import os
 import shutil
+import subprocess
 import tempfile
 import threading
 import time
@@ -63,17 +64,20 @@ class App:
             with self.cv_stopped:
                 self.stopped = True
                 self.cv_stopped.notify()
-            self.process.kill()
-            self.process.wait(10)
-            self.process = None
-            self.outpipe = None
+            self.__terminateProcess()
             return True
         return False
 
     def factoryReset(self):
+        wasRunning = (not self.killed) and self.stop()
+
         for kvs in self.kvsPathSet:
             if os.path.exists(kvs):
                 os.unlink(kvs)
+
+        if wasRunning:
+            return self.start()
+
         return True
 
     def waitForAnyAdvertisement(self):
@@ -84,8 +88,7 @@ class App:
         return True
 
     def kill(self):
-        if self.process:
-            self.process.kill()
+        self.__terminateProcess()
         self.killed = True
 
     def wait(self, timeout=None):
@@ -127,6 +130,9 @@ class App:
         start_time = time.monotonic()
         ready, self.lastLogIndex = outpipe.CapturedLogContains(
             waitForString, self.lastLogIndex)
+        if ready:
+            self.lastLogIndex += 1
+
         while not ready:
             if server_process.poll() is not None:
                 died_str = ('Server died while waiting for %s, returncode %d' %
@@ -138,6 +144,8 @@ class App:
             time.sleep(0.1)
             ready, self.lastLogIndex = outpipe.CapturedLogContains(
                 waitForString, self.lastLogIndex)
+            if ready:
+                self.lastLogIndex += 1
 
         logging.debug('Success waiting for: %s' % waitForString)
 
@@ -147,6 +155,18 @@ class App:
             raise Exception("Unable to find QR code")
         self.setupCode = qrLine.group(1)
 
+    def __terminateProcess(self):
+        if self.process:
+            self.process.terminate()  # sends SIGTERM
+            try:
+                self.process.wait(10)
+            except subprocess.TimeoutExpired:
+                logging.debug('Subprocess did not terminate on SIGTERM, killing it now')
+                self.process.kill()
+                self.process.wait(10)
+            self.process = None
+            self.outpipe = None
+
 
 class TestTarget(Enum):
     ALL_CLUSTERS = auto()
@@ -154,6 +174,7 @@ class TestTarget(Enum):
     LOCK = auto()
     OTA = auto()
     BRIDGE = auto()
+    LIT_ICD = auto()
 
 
 @dataclass
@@ -165,12 +186,13 @@ class ApplicationPaths:
     ota_requestor_app: typing.List[str]
     tv_app: typing.List[str]
     bridge_app: typing.List[str]
+    lit_icd_app: typing.List[str]
     chip_repl_yaml_tester_cmd: typing.List[str]
     chip_tool_with_python_cmd: typing.List[str]
 
     def items(self):
         return [self.chip_tool, self.all_clusters_app, self.lock_app, self.ota_provider_app, self.ota_requestor_app,
-                self.tv_app, self.bridge_app, self.chip_repl_yaml_tester_cmd, self.chip_tool_with_python_cmd]
+                self.tv_app, self.bridge_app, self.lit_icd_app, self.chip_repl_yaml_tester_cmd, self.chip_tool_with_python_cmd]
 
 
 @dataclass
@@ -278,49 +300,62 @@ class TestDefinition:
                 target_app = paths.ota_requestor_app
             elif self.target == TestTarget.BRIDGE:
                 target_app = paths.bridge_app
+            elif self.target == TestTarget.LIT_ICD:
+                target_app = paths.lit_icd_app
             else:
                 raise Exception("Unknown test target - "
                                 "don't know which application to run")
 
-            for path in paths.items():
-                # Do not add chip-tool or chip-repl-yaml-tester-cmd to the register
-                if path == paths.chip_tool or path == paths.chip_repl_yaml_tester_cmd or path == paths.chip_tool_with_python_cmd:
-                    continue
+            if not dry_run:
+                for path in paths.items():
+                    # Do not add chip-tool or chip-repl-yaml-tester-cmd to the register
+                    if path == paths.chip_tool or path == paths.chip_repl_yaml_tester_cmd or path == paths.chip_tool_with_python_cmd:
+                        continue
 
-                # Skip items where we don't actually have a path.  This can
-                # happen if the relevant application does not exist.  It's
-                # non-fatal as long as we are not trying to run any tests that
-                # need that application.
-                if path[-1] is None:
-                    continue
+                    # Skip items where we don't actually have a path.  This can
+                    # happen if the relevant application does not exist.  It's
+                    # non-fatal as long as we are not trying to run any tests that
+                    # need that application.
+                    if path[-1] is None:
+                        continue
 
-                # For the app indicated by self.target, give it the 'default' key to add to the register
-                if path == target_app:
-                    key = 'default'
-                else:
-                    key = os.path.basename(path[-1])
+                    # For the app indicated by self.target, give it the 'default' key to add to the register
+                    if path == target_app:
+                        key = 'default'
+                    else:
+                        key = os.path.basename(path[-1])
 
-                app = App(runner, path)
-                # Add the App to the register immediately, so if it fails during
-                # start() we will be able to clean things up properly.
-                apps_register.add(key, app)
-                # Remove server application storage (factory reset),
-                # so it will be commissionable again.
-                app.factoryReset()
+                    app = App(runner, path)
+                    # Add the App to the register immediately, so if it fails during
+                    # start() we will be able to clean things up properly.
+                    apps_register.add(key, app)
+                    # Remove server application storage (factory reset),
+                    # so it will be commissionable again.
+                    app.factoryReset()
 
             tool_cmd = paths.chip_tool if test_runtime != TestRunTime.CHIP_TOOL_PYTHON else paths.chip_tool_with_python_cmd
 
-            tool_storage_dir = tempfile.mkdtemp()
-            tool_storage_args = ['--storage-directory', tool_storage_dir]
+            if dry_run:
+                tool_storage_dir = None
+                tool_storage_args = []
+            else:
+                tool_storage_dir = tempfile.mkdtemp()
+                tool_storage_args = ['--storage-directory', tool_storage_dir]
 
             # Only start and pair the default app
-            app = apps_register.get('default')
-            app.start()
-            pairing_cmd = tool_cmd + ['pairing', 'code', TEST_NODE_ID, app.setupCode]
+            if dry_run:
+                setupCode = '${SETUP_PAYLOAD}'
+            else:
+                app = apps_register.get('default')
+                app.start()
+                setupCode = app.setupCode
+
+            pairing_cmd = tool_cmd + ['pairing', 'code', TEST_NODE_ID, setupCode]
             test_cmd = tool_cmd + ['tests', self.run_name] + ['--PICS', pics_file]
             if test_runtime == TestRunTime.CHIP_TOOL_PYTHON:
                 server_args = ['--server_path', paths.chip_tool[-1]] + \
-                    ['--server_arguments', 'interactive server ' + ' '.join(tool_storage_args)]
+                    ['--server_arguments', 'interactive server' +
+                        (' ' if len(tool_storage_args) else '') + ' '.join(tool_storage_args)]
                 pairing_cmd += server_args
                 test_cmd += server_args
             elif test_runtime == TestRunTime.CHIP_TOOL_BUILTIN:
@@ -328,8 +363,11 @@ class TestDefinition:
                 test_cmd += tool_storage_args
 
             if dry_run:
-                logging.info(" ".join(pairing_cmd))
-                logging.info(" ".join(test_cmd))
+                # Some of our command arguments have spaces in them, so if we are
+                # trying to log commands people can run we should quote those.
+                def quoter(arg): return f"'{arg}'" if ' ' in arg else arg
+                logging.info(" ".join(map(quoter, pairing_cmd)))
+                logging.info(" ".join(map(quoter, test_cmd)))
             elif test_runtime == TestRunTime.CHIP_REPL_PYTHON:
                 chip_repl_yaml_tester_cmd = paths.chip_repl_yaml_tester_cmd
                 python_cmd = chip_repl_yaml_tester_cmd + \

@@ -67,9 +67,17 @@ class HostApp(Enum):
     TV_CASTING = auto()
     BRIDGE = auto()
     JAVA_MATTER_CONTROLLER = auto()
+    KOTLIN_MATTER_CONTROLLER = auto()
     CONTACT_SENSOR = auto()
     DISHWASHER = auto()
+    MICROWAVE_OVEN = auto()
     REFRIGERATOR = auto()
+    RVC = auto()
+    AIR_PURIFIER = auto()
+    LIT_ICD = auto()
+    AIR_QUALITY_SENSOR = auto()
+    NETWORK_MANAGER = auto()
+    ENERGY_MANAGEMENT = auto()
 
     def ExamplePath(self):
         if self == HostApp.ALL_CLUSTERS:
@@ -112,12 +120,28 @@ class HostApp(Enum):
             return 'bridge-app/linux'
         elif self == HostApp.JAVA_MATTER_CONTROLLER:
             return 'java-matter-controller'
+        elif self == HostApp.KOTLIN_MATTER_CONTROLLER:
+            return 'kotlin-matter-controller'
         elif self == HostApp.CONTACT_SENSOR:
             return 'contact-sensor-app/linux'
         elif self == HostApp.DISHWASHER:
             return 'dishwasher-app/linux'
+        elif self == HostApp.MICROWAVE_OVEN:
+            return 'microwave-oven-app/linux'
         elif self == HostApp.REFRIGERATOR:
             return 'refrigerator-app/linux'
+        elif self == HostApp.RVC:
+            return 'rvc-app/linux'
+        elif self == HostApp.AIR_PURIFIER:
+            return 'air-purifier-app/linux'
+        elif self == HostApp.LIT_ICD:
+            return 'lit-icd-app/linux'
+        elif self == HostApp.AIR_QUALITY_SENSOR:
+            return 'air-quality-sensor-app/linux'
+        elif self == HostApp.NETWORK_MANAGER:
+            return 'network-manager-app/linux'
+        elif self == HostApp.ENERGY_MANAGEMENT:
+            return 'energy-management-app/linux'
         else:
             raise Exception('Unknown app type: %r' % self)
 
@@ -194,15 +218,33 @@ class HostApp(Enum):
         elif self == HostApp.JAVA_MATTER_CONTROLLER:
             yield 'java-matter-controller'
             yield 'java-matter-controller.map'
+        elif self == HostApp.KOTLIN_MATTER_CONTROLLER:
+            yield 'kotlin-matter-controller'
+            yield 'kotlin-matter-controller.map'
         elif self == HostApp.CONTACT_SENSOR:
             yield 'contact-sensor-app'
             yield 'contact-sensor-app.map'
         elif self == HostApp.DISHWASHER:
             yield 'dishwasher-app'
             yield 'dishwasher-app.map'
+        elif self == HostApp.MICROWAVE_OVEN:
+            yield 'microwave-oven-app'
+            yield 'microwave-oven-app.map'
         elif self == HostApp.REFRIGERATOR:
             yield 'refrigerator-app'
             yield 'refrigerator-app.map'
+        elif self == HostApp.RVC:
+            yield 'rvc-app'
+            yield 'rvc-app.map'
+        elif self == HostApp.AIR_PURIFIER:
+            yield 'air-purifier-app'
+            yield 'air-purifier-app.map'
+        elif self == HostApp.LIT_ICD:
+            yield 'lit-icd-app'
+            yield 'lit-icd-app.map'
+        elif self == HostApp.ENERGY_MANAGEMENT:
+            yield 'chip-energy-management-app'
+            yield 'chip-energy-management-app.map'
         else:
             raise Exception('Unknown app type: %r' % self)
 
@@ -255,7 +297,8 @@ class HostBuilder(GnBuilder):
                  separate_event_loop=True, fuzzing_type: HostFuzzingType = HostFuzzingType.NONE, use_clang=False,
                  interactive_mode=True, extra_tests=False, use_platform_mdns=False, enable_rpcs=False,
                  use_coverage=False, use_dmalloc=False, minmdns_address_policy=None,
-                 minmdns_high_verbosity=False, imgui_ui=False, crypto_library: HostCryptoLibrary = None):
+                 minmdns_high_verbosity=False, imgui_ui=False, crypto_library: HostCryptoLibrary = None,
+                 enable_test_event_triggers=None):
         super(HostBuilder, self).__init__(
             root=os.path.join(root, 'examples', app.ExamplePath()),
             runner=runner)
@@ -356,6 +399,10 @@ class HostBuilder(GnBuilder):
         if crypto_library:
             self.extra_gn_options.append(crypto_library.gn_argument)
 
+        if enable_test_event_triggers is not None:
+            if 'EVSE' in enable_test_event_triggers:
+                self.extra_gn_options.append('chip_enable_energy_evse_trigger=true')
+
         if self.board == HostBoard.ARM64:
             if not use_clang:
                 raise Exception("Cross compile only supported using clang")
@@ -445,6 +492,15 @@ class HostBuilder(GnBuilder):
                     ],
                     title="Copying Manifest.txt to " + self.output_dir,
                 )
+            if exampleName == "kotlin-matter-controller":
+                self._Execute(
+                    [
+                        "cp",
+                        os.path.join(self.root, "Manifest.txt"),
+                        self.output_dir,
+                    ],
+                    title="Copying Manifest.txt to " + self.output_dir,
+                )
 
         if self.app == HostApp.TESTS and self.use_coverage:
             self.coverage_dir = os.path.join(self.output_dir, 'coverage')
@@ -477,6 +533,9 @@ class HostBuilder(GnBuilder):
 
         if self.app == HostApp.JAVA_MATTER_CONTROLLER:
             self.createJavaExecutable("java-matter-controller")
+
+        if self.app == HostApp.KOTLIN_MATTER_CONTROLLER:
+            self.createJavaExecutable("kotlin-matter-controller")
 
     def build_outputs(self):
         outputs = {}

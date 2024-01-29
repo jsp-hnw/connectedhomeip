@@ -25,7 +25,9 @@ config:
     endpoint: 0
 
 tests:
-    - label: "Step 0: Wait for the commissioned device to be retrieved"
+    - label:
+          "Step 0: Commission DUT to TH (can be skipped if done in a preceding
+          test)."
       cluster: "DelayCommands"
       command: "WaitForCommissionee"
       arguments:
@@ -43,7 +45,7 @@ tests:
 
     - label:
           "Step 2: If (LTIME.S.A0000.12HR) TH writes 0 to HourFormat attribute"
-      PICS: LTIME.S.A0000.12HR
+      PICS: LTIME.S.M.12HR
       command: "writeAttribute"
       attribute: "HourFormat"
       arguments:
@@ -58,7 +60,7 @@ tests:
 
     - label:
           "Step 4: If (LTIME.S.A0000.24HR) TH writes 1 to HourFormat attribute"
-      PICS: LTIME.S.A0000.24HR
+      PICS: LTIME.S.M.24HR
       command: "writeAttribute"
       attribute: "HourFormat"
       arguments:

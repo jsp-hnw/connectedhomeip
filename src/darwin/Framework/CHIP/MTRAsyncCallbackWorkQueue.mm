@@ -15,11 +15,15 @@
  *    limitations under the License.
  */
 
+// NOTE: This class was not intended to be part of the public Matter API;
+// internally this class has been replaced by MTRAsyncWorkQueue. This code
+// remains here simply to preserve API/ABI compatibility.
+
 #import <dispatch/dispatch.h>
 #import <os/lock.h>
 
-#import "MTRAsyncCallbackWorkQueue_Internal.h"
 #import "MTRLogging_Internal.h"
+#import <Matter/MTRAsyncCallbackWorkQueue.h>
 
 #pragma mark - Class extensions
 
@@ -47,7 +51,7 @@
 @property (nonatomic, strong) MTRAsyncCallbackWorkQueue * workQueue;
 @property (nonatomic, readonly) BOOL enqueued;
 // Called by the queue
-- (void)markedEnqueued;
+- (void)markEnqueued;
 - (void)callReadyHandlerWithContext:(id)context;
 - (void)cancel;
 @end
@@ -62,7 +66,6 @@
         _context = context;
         _queue = queue;
         _items = [NSMutableArray array];
-        MTR_LOG_INFO("MTRAsyncCallbackWorkQueue init for context %@", context);
     }
     return self;
 }
@@ -86,7 +89,7 @@
         return;
     }
 
-    [item markedEnqueued];
+    [item markEnqueued];
 
     os_unfair_lock_lock(&_lock);
     item.workQueue = self;
@@ -103,8 +106,6 @@
     _items = nil;
     os_unfair_lock_unlock(&_lock);
 
-    MTR_LOG_INFO(
-        "MTRAsyncCallbackWorkQueue invalidate for context %@ items count: %lu", _context, (unsigned long) invalidateItems.count);
     for (MTRAsyncCallbackQueueWorkItem * item in invalidateItems) {
         [item cancel];
     }
@@ -169,50 +170,10 @@
         self.runningWorkItemCount = 1;
 
         MTRAsyncCallbackQueueWorkItem * workItem = self.items.firstObject;
-
-        // Check if batching is possible or needed. Only ask work item to batch once for simplicity
-        if (workItem.batchable && workItem.batchingHandler && (workItem.retryCount == 0)) {
-            while (self.items.count >= 2) {
-                MTRAsyncCallbackQueueWorkItem * nextWorkItem = self.items[1];
-                if (!nextWorkItem.batchable || (nextWorkItem.batchingID != workItem.batchingID)) {
-                    // next item is not eligible to merge with this one
-                    break;
-                }
-
-                BOOL fullyMerged = NO;
-                workItem.batchingHandler(workItem.batchableData, nextWorkItem.batchableData, &fullyMerged);
-                if (!fullyMerged) {
-                    // We can't remove the next work item, so we can't merge anything else into this one.
-                    break;
-                }
-
-                [self.items removeObjectAtIndex:1];
-            }
-        }
-
         [workItem callReadyHandlerWithContext:self.context];
     }
 }
 
-- (BOOL)isDuplicateForTypeID:(NSUInteger)opaqueDuplicateTypeID workItemData:(id)opaqueWorkItemData
-{
-    os_unfair_lock_lock(&_lock);
-    // Start from the last item
-    for (NSUInteger i = self.items.count; i > 0; i--) {
-        MTRAsyncCallbackQueueWorkItem * item = self.items[i - 1];
-        BOOL isDuplicate = NO;
-        BOOL stop = NO;
-        if (item.supportsDuplicateCheck && (item.duplicateTypeID == opaqueDuplicateTypeID) && item.duplicateCheckHandler) {
-            item.duplicateCheckHandler(opaqueWorkItemData, &isDuplicate, &stop);
-            if (stop) {
-                os_unfair_lock_unlock(&_lock);
-                return isDuplicate;
-            }
-        }
-    }
-    os_unfair_lock_unlock(&_lock);
-    return NO;
-}
 @end
 
 @implementation MTRAsyncCallbackQueueWorkItem
@@ -247,7 +208,7 @@
     os_unfair_lock_unlock(&_lock);
 }
 
-- (void)markedEnqueued
+- (void)markEnqueued
 {
     os_unfair_lock_lock(&_lock);
     _enqueued = YES;
@@ -317,25 +278,6 @@
             cancelHandler();
         });
     }
-}
-
-- (void)setBatchingID:(NSUInteger)opaqueBatchingID
-                 data:(id)opaqueBatchableData
-              handler:(MTRAsyncCallbackBatchingHandler)batchingHandler
-{
-    os_unfair_lock_lock(&self->_lock);
-    _batchable = YES;
-    _batchingID = opaqueBatchingID;
-    _batchableData = opaqueBatchableData;
-    _batchingHandler = batchingHandler;
-    os_unfair_lock_unlock(&self->_lock);
-}
-
-- (void)setDuplicateTypeID:(NSUInteger)opaqueDuplicateTypeID handler:(MTRAsyncCallbackDuplicateCheckHandler)duplicateCheckHandler
-{
-    _supportsDuplicateCheck = YES;
-    _duplicateTypeID = opaqueDuplicateTypeID;
-    _duplicateCheckHandler = duplicateCheckHandler;
 }
 
 @end

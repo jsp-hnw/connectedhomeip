@@ -39,22 +39,6 @@ FactoryDataProviderImpl::FactoryDataProviderImpl()
 CHIP_ERROR FactoryDataProviderImpl::Init()
 {
     CHIP_ERROR error = CHIP_NO_ERROR;
-    uint32_t sum     = 0;
-
-#if CHIP_DEVICE_CONFIG_USE_CUSTOM_PROVIDER
-    ReturnErrorOnFailure(SetCustomIds());
-#endif
-
-    for (uint8_t i = 1; i < FactoryDataProvider::kNumberOfIds; i++)
-    {
-        sum += maxLengths[i];
-    }
-
-    if (sum > kFactoryDataSize)
-    {
-        ChipLogError(DeviceLayer, "Max size of factory data: %lu is bigger than reserved factory data size: %lu", sum,
-                     kFactoryDataSize);
-    }
 
 #if CONFIG_CHIP_K32W0_OTA_FACTORY_DATA_PROCESSOR
     error = ValidateWithRestore();
@@ -75,8 +59,8 @@ CHIP_ERROR FactoryDataProviderImpl::SignWithDacKey(const ByteSpan & messageToSig
     Crypto::P256Keypair keypair;
     Crypto::P256SerializedKeypair serializedKeypair;
 
-    VerifyOrReturnError(IsSpanUsable(outSignBuffer), CHIP_ERROR_INVALID_ARGUMENT);
-    VerifyOrReturnError(IsSpanUsable(messageToSign), CHIP_ERROR_INVALID_ARGUMENT);
+    VerifyOrReturnError(!outSignBuffer.empty(), CHIP_ERROR_INVALID_ARGUMENT);
+    VerifyOrReturnError(!messageToSign.empty(), CHIP_ERROR_INVALID_ARGUMENT);
     VerifyOrReturnError(outSignBuffer.size() >= signature.Capacity(), CHIP_ERROR_BUFFER_TOO_SMALL);
 
     /* Get private key of DAC certificate from reserved section */

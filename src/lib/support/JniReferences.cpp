@@ -21,6 +21,7 @@
 #include <lib/support/CodeUtils.h>
 #include <lib/support/JniReferences.h>
 #include <lib/support/JniTypeWrappers.h>
+#include <string>
 
 namespace chip {
 
@@ -35,7 +36,7 @@ void JniReferences::SetJavaVm(JavaVM * jvm, const char * clsType)
     JNIEnv * env = GetEnvForCurrentThread();
     // Any chip.devicecontroller.* class will work here - just need something to call getClassLoader() on.
     jclass chipClass = env->FindClass(clsType);
-    VerifyOrReturn(chipClass != nullptr, ChipLogError(Support, "clsType can not found"));
+    VerifyOrReturn(chipClass != nullptr, ChipLogError(Support, "clsType can not be found"));
 
     jclass classClass              = env->FindClass("java/lang/Class");
     jclass classLoaderClass        = env->FindClass("java/lang/ClassLoader");
@@ -77,8 +78,18 @@ JNIEnv * JniReferences::GetEnvForCurrentThread()
 
 CHIP_ERROR JniReferences::GetClassRef(JNIEnv * env, const char * clsType, jclass & outCls)
 {
-    CHIP_ERROR err = CHIP_NO_ERROR;
     jclass cls     = nullptr;
+    CHIP_ERROR err = GetLocalClassRef(env, clsType, cls);
+    ReturnErrorOnFailure(err);
+    outCls = (jclass) env->NewGlobalRef((jobject) cls);
+    VerifyOrReturnError(outCls != nullptr, CHIP_JNI_ERROR_TYPE_NOT_FOUND);
+
+    return err;
+}
+
+CHIP_ERROR JniReferences::GetLocalClassRef(JNIEnv * env, const char * clsType, jclass & outCls)
+{
+    jclass cls = nullptr;
 
     // Try `j$/util/Optional` when enabling Java8.
     if (strcmp(clsType, "java/util/Optional") == 0)
@@ -100,10 +111,8 @@ CHIP_ERROR JniReferences::GetClassRef(JNIEnv * env, const char * clsType, jclass
         VerifyOrReturnError(cls != nullptr && env->ExceptionCheck() != JNI_TRUE, CHIP_JNI_ERROR_TYPE_NOT_FOUND);
     }
 
-    outCls = (jclass) env->NewGlobalRef((jobject) cls);
-    VerifyOrReturnError(outCls != nullptr, CHIP_JNI_ERROR_TYPE_NOT_FOUND);
-
-    return err;
+    outCls = cls;
+    return CHIP_NO_ERROR;
 }
 
 CHIP_ERROR JniReferences::N2J_ByteArray(JNIEnv * env, const uint8_t * inArray, jsize inArrayLen, jbyteArray & outArray)
@@ -119,6 +128,19 @@ CHIP_ERROR JniReferences::N2J_ByteArray(JNIEnv * env, const uint8_t * inArray, j
 
 exit:
     return err;
+}
+
+static std::string StrReplaceAll(const std::string & source, const std::string & from, const std::string & to)
+{
+    std::string newString = source;
+    size_t pos            = 0;
+    while ((pos = newString.find(from, pos)) != std::string::npos)
+    {
+        newString.replace(pos, from.length(), to);
+        pos += to.length();
+    }
+
+    return newString;
 }
 
 CHIP_ERROR JniReferences::FindMethod(JNIEnv * env, jobject object, const char * methodName, const char * methodSignature,
@@ -138,23 +160,35 @@ CHIP_ERROR JniReferences::FindMethod(JNIEnv * env, jobject object, const char * 
         return CHIP_NO_ERROR;
     }
 
-    // Try `j$` when enabling Java8.
-    std::string methodSignature_java8_str(methodSignature);
-    size_t pos = methodSignature_java8_str.find("java/util/Optional");
-    if (pos != std::string::npos)
-    {
-        // Replace all "java/util/Optional" with "j$/util/Optional".
-        while (pos != std::string::npos)
-        {
-            methodSignature_java8_str.replace(pos, strlen("java/util/Optional"), "j$/util/Optional");
-            pos = methodSignature_java8_str.find("java/util/Optional");
-        }
-        *methodId = env->GetMethodID(javaClass, methodName, methodSignature_java8_str.c_str());
-        env->ExceptionClear();
-    }
+    std::string method_signature = methodSignature;
+    method_signature             = StrReplaceAll(method_signature, "java/util/Optional", "j$/util/Optional");
+    *methodId                    = env->GetMethodID(javaClass, methodName, method_signature.data());
+    env->ExceptionClear();
 
     VerifyOrReturnError(*methodId != nullptr, CHIP_JNI_ERROR_METHOD_NOT_FOUND);
+    return CHIP_NO_ERROR;
+}
 
+CHIP_ERROR JniReferences::FindMethod(JNIEnv * env, jclass javaClass, const char * methodName, const char * methodSignature,
+                                     jmethodID * methodId)
+{
+    VerifyOrReturnError(env != nullptr, CHIP_JNI_ERROR_NULL_OBJECT);
+    VerifyOrReturnError(javaClass != nullptr, CHIP_JNI_ERROR_TYPE_NOT_FOUND);
+
+    *methodId = env->GetMethodID(javaClass, methodName, methodSignature);
+    env->ExceptionClear();
+
+    if (*methodId != nullptr)
+    {
+        return CHIP_NO_ERROR;
+    }
+
+    std::string method_signature = methodSignature;
+    method_signature             = StrReplaceAll(method_signature, "java/util/Optional", "j$/util/Optional");
+    *methodId                    = env->GetMethodID(javaClass, methodName, method_signature.data());
+    env->ExceptionClear();
+
+    VerifyOrReturnError(*methodId != nullptr, CHIP_JNI_ERROR_METHOD_NOT_FOUND);
     return CHIP_NO_ERROR;
 }
 

@@ -33,6 +33,7 @@
 #include <lib/support/CodeUtils.h>
 #include <lib/support/Span.h>
 #include <lib/support/logging/CHIPLogging.h>
+#include <platform/GLibTypeDeleter.h>
 #include <platform/PlatformManager.h>
 
 namespace chip {
@@ -40,8 +41,8 @@ namespace DeviceLayer {
 namespace Internal {
 
 // CHIPoBLE UUID strings
-const char * chip_service_uuid       = "0000FFF6-0000-1000-8000-00805F9B34FB";
-const char * chip_service_uuid_short = "FFF6";
+const char chip_service_uuid[]       = "0000FFF6-0000-1000-8000-00805F9B34FB";
+const char chip_service_uuid_short[] = "FFF6";
 
 ChipDeviceScanner::ChipDeviceScanner(ChipDeviceScannerDelegate * delegate) : mDelegate(delegate) {}
 
@@ -145,25 +146,22 @@ gboolean ChipDeviceScanner::TimerExpiredCb(gpointer userData)
 
 CHIP_ERROR ChipDeviceScanner::TriggerScan(ChipDeviceScanner * self)
 {
-    CHIP_ERROR err = CHIP_NO_ERROR;
-    GSource * idleSource;
+    GAutoPtr<GSource> idleSource;
     int ret;
 
     // Trigger LE Scan
     ret = bt_adapter_le_start_scan(LeScanResultCb, self);
-    VerifyOrExit(ret == BT_ERROR_NONE, ChipLogError(DeviceLayer, "bt_adapter_le_start_scan() failed: %s", get_error_message(ret));
-                 err = CHIP_ERROR_INTERNAL);
+    VerifyOrReturnValue(ret == BT_ERROR_NONE, CHIP_ERROR_INTERNAL,
+                        ChipLogError(DeviceLayer, "bt_adapter_le_start_scan() failed: %s", get_error_message(ret)));
     self->mIsScanning = true;
 
     // Setup timer for scan timeout
-    idleSource = g_timeout_source_new(self->mScanTimeoutMs);
-    g_source_set_callback(idleSource, TimerExpiredCb, self, nullptr);
-    g_source_set_priority(idleSource, G_PRIORITY_HIGH_IDLE);
-    g_source_attach(idleSource, g_main_context_get_thread_default());
-    g_source_unref(idleSource);
+    idleSource = GAutoPtr<GSource>(g_timeout_source_new(self->mScanTimeoutMs));
+    g_source_set_callback(idleSource.get(), TimerExpiredCb, self, nullptr);
+    g_source_set_priority(idleSource.get(), G_PRIORITY_HIGH_IDLE);
+    g_source_attach(idleSource.get(), g_main_context_get_thread_default());
 
-exit:
-    return err;
+    return CHIP_NO_ERROR;
 }
 
 static bool __IsScanFilterSupported()
@@ -175,15 +173,11 @@ static bool __IsScanFilterSupported()
     return is_supported;
 }
 
-void ChipDeviceScanner::CheckScanFilter(ScanFilterType filterType, ScanFilterData & filterData)
+int ChipDeviceScanner::SetupScanFilter(ScanFilterType filterType, const ScanFilterData & filterData)
 {
-    int ret = BT_ERROR_NONE;
+    VerifyOrReturnValue(__IsScanFilterSupported(), BT_ERROR_NONE, ChipLogError(DeviceLayer, "BLE scan filter not supported"));
 
-    // Scan Filter check
-    if (!__IsScanFilterSupported())
-        return;
-
-    ret = CreateLEScanFilter(filterType, filterData);
+    int ret = CreateLEScanFilter(filterType);
     VerifyOrExit(ret == BT_ERROR_NONE,
                  ChipLogError(DeviceLayer, "BLE scan filter creation failed: %s. Do Normal Scan", get_error_message(ret)));
 
@@ -191,19 +185,21 @@ void ChipDeviceScanner::CheckScanFilter(ScanFilterType filterType, ScanFilterDat
     VerifyOrExit(ret == BT_ERROR_NONE,
                  ChipLogError(DeviceLayer, "BLE scan filter registration failed: %s. Do Normal Scan", get_error_message(ret)));
 
-    return;
+    return ret;
 
 exit:
     UnRegisterScanFilter();
+    return ret;
 }
 
-CHIP_ERROR ChipDeviceScanner::StartChipScan(System::Clock::Timeout timeout, ScanFilterType filterType, ScanFilterData & filterData)
+CHIP_ERROR ChipDeviceScanner::StartChipScan(System::Clock::Timeout timeout, ScanFilterType filterType,
+                                            const ScanFilterData & filterData)
 {
     CHIP_ERROR err = CHIP_NO_ERROR;
     ReturnErrorCodeIf(mIsScanning, CHIP_ERROR_INCORRECT_STATE);
 
     // Scan Filter Setup if supported: silently bypass error & do filterless scan in case of error
-    CheckScanFilter(filterType, filterData);
+    SetupScanFilter(filterType, filterData);
 
     mScanTimeoutMs = System::Clock::Milliseconds32(timeout).count();
 
@@ -253,7 +249,7 @@ void ChipDeviceScanner::UnRegisterScanFilter()
     }
 }
 
-int ChipDeviceScanner::RegisterScanFilter(ScanFilterType filterType, ScanFilterData & filterData)
+int ChipDeviceScanner::RegisterScanFilter(ScanFilterType filterType, const ScanFilterData & filterData)
 {
     int ret = BT_ERROR_NONE;
 
@@ -295,7 +291,7 @@ exit:
     return ret;
 }
 
-int ChipDeviceScanner::CreateLEScanFilter(ScanFilterType filterType, ScanFilterData & filterData)
+int ChipDeviceScanner::CreateLEScanFilter(ScanFilterType filterType)
 {
     int ret = bt_adapter_le_scan_filter_create(&mScanFilter);
     VerifyOrExit(ret == BT_ERROR_NONE,

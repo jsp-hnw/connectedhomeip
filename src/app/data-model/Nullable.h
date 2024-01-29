@@ -30,7 +30,7 @@ namespace DataModel {
 /**
  * NullNullable is an alias for NullOptional, for better readability.
  */
-constexpr auto NullNullable = NullOptional;
+inline constexpr auto NullNullable = NullOptional;
 
 /*
  * Dedicated type for nullable things, to differentiate them from optional
@@ -48,6 +48,7 @@ struct Nullable : protected Optional<T>
     // Pull in APIs that make sense on Nullable with the same names as on
     // Optional.
     using Optional<T>::Value;
+    using Optional<T>::ValueOr;
 
     // Some consumers need an easy way to determine our underlying type.
     using UnderlyingType = T;

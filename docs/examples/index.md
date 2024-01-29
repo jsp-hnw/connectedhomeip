@@ -78,6 +78,15 @@ chip-tool/README
 darwin-framework-tool/README
 ```
 
+## Energy Management example
+
+```{toctree}
+:glob:
+:maxdepth: 1
+
+energy-management-app/**/README
+```
+
 ## Java matter controller example
 
 ```{toctree}
@@ -85,6 +94,15 @@ darwin-framework-tool/README
 :maxdepth: 1
 
 java-matter-controller/README
+```
+
+## Kotlin matter controller example
+
+```{toctree}
+:glob:
+:maxdepth: 1
+
+kotlin-matter-controller/README
 ```
 
 ## Virtual Device App example
@@ -113,6 +131,7 @@ lighting-app/qpg/APPLICATION
 :maxdepth: 1
 
 light-switch-app/**/README
+light-switch-app/qpg/APPLICATION
 ```
 
 ## Lock example
@@ -238,6 +257,15 @@ smoke-co-alarm-app/**/README
 dishwasher-app/**/README
 ```
 
+## Microwave oven example
+
+```{toctree}
+:glob:
+:maxdepth: 1
+
+microwave-oven-app/**/README
+```
+
 ## Temperature measurement example
 
 ```{toctree}
@@ -255,6 +283,7 @@ temperature-measurement-app/**/README
 
 thermostat/**/README
 thermostat/**/Readme
+thermostat/qpg/APPLICATION
 ```
 
 ## TV example
@@ -273,6 +302,7 @@ tv-app/**/README
 :maxdepth: 1
 
 tv-casting-app/**/README
+tv-casting-app/APIs.md
 ```
 
 ## Window example
@@ -284,11 +314,38 @@ tv-casting-app/**/README
 window-app/**/README
 ```
 
-## Resource monitoring example
+## RVC example
 
 ```{toctree}
 :glob:
 :maxdepth: 1
 
-resource-monitoring-app/**/README
+rvc-app/README
+```
+
+## Air Purifier Example
+
+```{toctree}
+:glob:
+:maxdepth: 1
+
+air-purifier-app/**/README
+```
+
+## Network Infrastructure Manager example
+
+```{toctree}
+:glob:
+:maxdepth: 1
+
+network-manager-app/README
+```
+
+## Lit ICD example
+
+```{toctree}
+:glob:
+:maxdepth: 1
+
+lit-icd-app/**/README
 ```

@@ -19,7 +19,12 @@ private:
     ModeBase::Instance mCleanModeInstance;
 
     RvcOperationalState::RvcOperationalStateDelegate mOperationalStateDelegate;
-    OperationalState::Instance mOperationalStateInstance;
+    RvcOperationalState::Instance mOperationalStateInstance;
+
+    bool mDocked   = false;
+    bool mCharging = false;
+
+    uint8_t mStateBeforePause = 0;
 
 public:
     /**
@@ -30,12 +35,13 @@ public:
     explicit RvcDevice(EndpointId aRvcClustersEndpoint) :
         mRunModeDelegate(), mRunModeInstance(&mRunModeDelegate, aRvcClustersEndpoint, RvcRunMode::Id, 0), mCleanModeDelegate(),
         mCleanModeInstance(&mCleanModeDelegate, aRvcClustersEndpoint, RvcCleanMode::Id, 0), mOperationalStateDelegate(),
-        mOperationalStateInstance(&mOperationalStateDelegate, aRvcClustersEndpoint, RvcOperationalState::Id)
+        mOperationalStateInstance(&mOperationalStateDelegate, aRvcClustersEndpoint)
     {
         // set the current-mode at start-up
         mRunModeInstance.UpdateCurrentMode(RvcRunMode::ModeIdle);
-        // Assume that the device is not docked.
-        mOperationalStateInstance.SetOperationalState(to_underlying(OperationalState::OperationalStateEnum::kStopped));
+
+        // Hypothetically, the device checks if it is physically docked or charging
+        SetDeviceToIdleState();
 
         // set callback functions
         mRunModeDelegate.SetHandleChangeToMode(&RvcDevice::HandleRvcRunChangeToMode, this);
@@ -48,6 +54,12 @@ public:
      * Init all the clusters used by this device.
      */
     void Init();
+
+    /**
+     * Sets the device to an idle state, that is either the STOPPED, DOCKED or CHARGING state, depending on physical information.
+     * Note: in this example this is based on the mDocked and mChanging boolean variables.
+     */
+    void SetDeviceToIdleState();
 
     /**
      * Handles the RvcRunMode command requesting a mode change.
@@ -68,6 +80,31 @@ public:
      * Handles the RvcOperationalState resume command.
      */
     void HandleOpStateResumeCallback(Clusters::OperationalState::GenericOperationalError & err);
+
+    /**
+     * Updates the state machine when the device becomes fully-charged.
+     */
+    void HandleChargedMessage();
+
+    void HandleChargingMessage();
+
+    void HandleDockedMessage();
+
+    void HandleChargerFoundMessage();
+
+    void HandleLowChargeMessage();
+
+    void HandleActivityCompleteEvent();
+
+    /**
+     * Sets the device to an error state with the error state ID matching the error name given.
+     * @param error The error name. Could be one of UnableToStartOrResume, UnableToCompleteOperation, CommandInvalidInState,
+     * FailedToFindChargingDock, Stuck, DustBinMissing, DustBinFull, WaterTankEmpty, WaterTankMissing, WaterTankLidOpen or
+     * MopCleaningPadMissing.
+     */
+    void HandleErrorEvent(const std::string & error);
+
+    void HandleClearErrorMessage();
 };
 
 } // namespace Clusters

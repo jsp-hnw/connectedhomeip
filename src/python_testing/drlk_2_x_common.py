@@ -144,13 +144,15 @@ class DRLK_COMMON:
             logging.info("Credential created at CredentialIndex %d, UserIndex %d." % (credentialIndex, ret.userIndex))
             self.createdCredential = credential
 
+        requirePinForRemoteOperation_dut = False
         if self.check_pics("DRLK.S.F00") and self.check_pics("DRLK.S.F07"):
-            requirePinForRemoteOperation_dut = False
             self.print_step("1", "TH writes the RequirePINforRemoteOperation attribute value as false on the DUT")
             attribute = attributes.RequirePINforRemoteOperation(False)
             if self.check_pics("DRLK.S.M.RequirePINForRemoteOperationAttributeWritable"):
+                print("---------------------- PICS is true")
                 await self.write_drlk_attribute_expect_success(attribute=attribute)
             else:
+                print("---------------------- PICS is false")
                 await self.write_drlk_attribute_expect_error(attribute=attribute, error=Status.UnsupportedWrite)
 
             if self.check_pics("DRLK.S.A0033"):

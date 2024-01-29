@@ -106,7 +106,7 @@ void MatterPostAttributeChangeCallback(const chip::app::ConcreteAttributePath & 
             if (attributeId == ColorControl::Attributes::EnhancedCurrentHue::Id)
             {
                 // We only support 8-bit hue. Assuming hue is linear, normalize 16-bit to 8-bit.
-                hsv.h = (uint8_t)((*reinterpret_cast<uint16_t *>(value)) >> 8);
+                hsv.h = (uint8_t) ((*reinterpret_cast<uint16_t *>(value)) >> 8);
                 // get saturation from cluster value storage
                 EmberAfStatus status = ColorControl::Attributes::CurrentSaturation::Get(endpoint, &hsv.s);
                 assert(status == EMBER_ZCL_STATUS_SUCCESS);
@@ -160,13 +160,41 @@ void MatterPostAttributeChangeCallback(const chip::app::ConcreteAttributePath & 
  */
 void emberAfOnOffClusterInitCallback(EndpointId endpoint)
 {
+    uint8_t levelValue;
+    XyColor_t xy;
     bool onOffValue = false;
+    app::DataModel::Nullable<uint8_t> currentLevel;
+    EmberAfStatus status;
 
-    EmberAfStatus status = OnOff::Attributes::OnOff::Get(1, &onOffValue);
+    status = OnOff::Attributes::OnOff::Get(1, &onOffValue);
 
     if (status == EMBER_ZCL_STATUS_SUCCESS)
     {
         LightingMgr().InitiateAction(onOffValue ? LightingManager::ON_ACTION : LightingManager::OFF_ACTION, 0, 1,
                                      (uint8_t *) onOffValue);
     }
+
+    /* restore values saved by DeferredAttributePersistenceProvider */
+    status = LevelControl::Attributes::CurrentLevel::Get(endpoint, currentLevel);
+    if (status != EMBER_ZCL_STATUS_SUCCESS || currentLevel.IsNull())
+    {
+        return;
+    }
+
+    levelValue = currentLevel.Value();
+
+    status = ColorControl::Attributes::CurrentY::Get(endpoint, &xy.y);
+    if (status != EMBER_ZCL_STATUS_SUCCESS)
+    {
+        return;
+    }
+    status = ColorControl::Attributes::CurrentX::Get(endpoint, &xy.x);
+    if (status != EMBER_ZCL_STATUS_SUCCESS)
+    {
+        return;
+    }
+    ChipLogProgress(Zcl, "restore level: %u", levelValue);
+    LightingMgr().InitiateAction(LightingManager::LEVEL_ACTION, 0, 1, &levelValue);
+    ChipLogProgress(Zcl, "restore XY color: %u|%u", xy.x, xy.y);
+    LightingMgr().InitiateAction(LightingManager::COLOR_ACTION_XY, 0, sizeof(xy), (uint8_t *) &xy);
 }

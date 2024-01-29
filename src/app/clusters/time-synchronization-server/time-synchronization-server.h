@@ -29,7 +29,7 @@
 #include "time-synchronization-delegate.h"
 
 #if TIME_SYNC_ENABLE_TSC_FEATURE
-#include <app/ClusterStateCache.h>
+#include <app/ReadClient.h>
 #endif
 #include <app/server/Server.h>
 #include <app/util/af-types.h>
@@ -69,10 +69,13 @@ enum class TimeSyncEventFlag : uint8_t
     kMissingTTSource = 16,
 };
 
+void SetDefaultDelegate(Delegate * delegate);
+Delegate * GetDefaultDelegate();
+
 class TimeSynchronizationServer : public FabricTable::Delegate
 #if TIME_SYNC_ENABLE_TSC_FEATURE
     ,
-                                  public ClusterStateCache::Callback
+                                  public ReadClient::Callback
 #endif
 {
 public:
@@ -117,8 +120,8 @@ public:
     void OnDeviceConnectedFn(Messaging::ExchangeManager & exchangeMgr, const SessionHandle & sessionHandle);
     void OnDeviceConnectionFailureFn();
 
-    // AttributeCache::Callback functions
-    void OnAttributeChanged(ClusterStateCache * cache, const ConcreteAttributePath & path) override {}
+    // ReadClient::Callback functions
+    void OnAttributeData(const ConcreteDataAttributePath & aPath, TLV::TLVReader * apData, const StatusIB & aStatus) override;
     void OnDone(ReadClient * apReadClient) override;
 #endif
 
@@ -142,10 +145,21 @@ private:
     static TimeSynchronizationServer sTimeSyncInstance;
     TimeSyncEventFlag mEventFlag = TimeSyncEventFlag::kNone;
 #if TIME_SYNC_ENABLE_TSC_FEATURE
-    Platform::UniquePtr<app::ClusterStateCache> mAttributeCache;
-    Platform::UniquePtr<app::ReadClient> mReadClient;
     chip::Callback::Callback<chip::OnDeviceConnected> mOnDeviceConnectedCallback;
     chip::Callback::Callback<chip::OnDeviceConnectionFailure> mOnDeviceConnectionFailureCallback;
+    struct TimeReadInfo
+    {
+        TimeReadInfo(InteractionModelEngine * apImEngine, Messaging::ExchangeManager * apExchangeMgr,
+                     ReadClient::Callback & apCallback, ReadClient::InteractionType aInteractionType) :
+            readClient(apImEngine, apExchangeMgr, apCallback, aInteractionType)
+        {
+            utcTime.SetNull();
+        }
+        Attributes::UTCTime::TypeInfo::DecodableType utcTime;
+        Attributes::Granularity::TypeInfo::DecodableType granularity = GranularityEnum::kNoTimeGranularity;
+        ReadClient readClient;
+    };
+    Platform::UniquePtr<TimeReadInfo> mTimeReadInfo;
 #endif
     chip::Callback::Callback<OnTimeSyncCompletion> mOnTimeSyncCompletion;
     chip::Callback::Callback<OnFallbackNTPCompletion> mOnFallbackNTPCompletion;

@@ -24,8 +24,8 @@
 /* this file behaves like a config.h, comes first */
 #include <platform/internal/CHIPDeviceLayerInternal.h>
 
+#include <lib/core/ErrorStr.h>
 #include <lib/support/CodeUtils.h>
-#include <lib/support/ErrorStr.h>
 #include <lib/support/logging/CHIPLogging.h>
 #include <platform/ESP32/ESP32Utils.h>
 
@@ -82,7 +82,7 @@ bool ESP32Utils::IsStationProvisioned(void)
 CHIP_ERROR ESP32Utils::IsStationConnected(bool & connected)
 {
     wifi_ap_record_t apInfo;
-    connected = (esp_wifi_sta_get_ap_info(&apInfo) == ESP_OK);
+    connected = (esp_wifi_sta_get_ap_info(&apInfo) == ESP_OK && apInfo.ssid[0] != 0);
     return CHIP_NO_ERROR;
 }
 

@@ -23,7 +23,7 @@ config:
     endpoint: 1
 
 tests:
-    - label: "Step 1: Wait for the commissioned device to be retrieved"
+    - label: "Step 1: Commission DUT to TH"
       cluster: "DelayCommands"
       command: "WaitForCommissionee"
       arguments:
@@ -38,8 +38,7 @@ tests:
       response:
           constraints:
               type: enum8
-              minValue: 0
-              maxValue: 6
+              anyOf: [0, 1, 2, 3, 5]
 
     - label: "Step 3: TH reads from the DUT the the FanModeSequence attribute"
       PICS: FAN.S.A0001
@@ -57,7 +56,7 @@ tests:
       attribute: "PercentSetting"
       response:
           constraints:
-              type: Percent
+              type: percent
               minValue: 0
               maxValue: 100
 
@@ -67,6 +66,6 @@ tests:
       attribute: "PercentCurrent"
       response:
           constraints:
-              type: Percent
+              type: percent
               minValue: 0
               maxValue: 100

@@ -43,6 +43,7 @@
 #include <app/util/attribute-storage.h>
 #include <lib/support/TypeTraits.h>
 
+#include <app/DeferredAttributePersistenceProvider.h>
 #include <credentials/DeviceAttestationCredsProvider.h>
 #include <credentials/examples/DeviceAttestationCredsExample.h>
 
@@ -72,6 +73,7 @@ using namespace ::chip::DeviceLayer;
 static uint8_t countdown = 0;
 
 namespace {
+constexpr EndpointId kLightEndpointId = 1;
 TaskHandle_t sAppTaskHandle;
 QueueHandle_t sAppEventQueue;
 
@@ -92,6 +94,25 @@ StaticTask_t appTaskStruct;
 
 Clusters::Identify::EffectIdentifierEnum sIdentifyEffect = Clusters::Identify::EffectIdentifierEnum::kStopEffect;
 chip::DeviceLayer::DeviceInfoProviderImpl gExampleDeviceInfoProvider;
+
+// Define a custom attribute persister which makes actual write of the attribute value
+// to the non-volatile storage only when it has remained constant for 5 seconds. This is to reduce
+// the flash wearout when the attribute changes frequently as a result of commands.
+// DeferredAttribute object describes a deferred attribute, but also holds a buffer with a value to
+// be written, so it must live so long as the DeferredAttributePersistenceProvider object.
+//
+DeferredAttribute gPersisters[] = { DeferredAttribute(ConcreteAttributePath(kLightEndpointId, Clusters::ColorControl::Id,
+                                                                            Clusters::ColorControl::Attributes::CurrentX::Id)),
+                                    DeferredAttribute(ConcreteAttributePath(kLightEndpointId, Clusters::ColorControl::Id,
+                                                                            Clusters::ColorControl::Attributes::CurrentY::Id)),
+                                    DeferredAttribute(ConcreteAttributePath(kLightEndpointId, Clusters::LevelControl::Id,
+                                                                            Clusters::LevelControl::Attributes::CurrentLevel::Id))
+
+};
+
+DeferredAttributePersistenceProvider gDeferredAttributePersister(Server::GetInstance().GetDefaultAttributePersister(),
+                                                                 Span<DeferredAttribute>(gPersisters, 3),
+                                                                 System::Clock::Milliseconds32(5000));
 
 /**********************************************************
  * Identify Callbacks
@@ -159,30 +180,28 @@ void OnTriggerOffWithEffect(OnOffEffect * effect)
     auto effectVariant = effect->mEffectVariant;
 
     // Uses print outs until we can support the effects
-    if (effectId == Clusters::OnOff::OnOffEffectIdentifier::kDelayedAllOff)
+    if (effectId == Clusters::OnOff::EffectIdentifierEnum::kDelayedAllOff)
     {
-        auto typedEffectVariant = static_cast<Clusters::OnOff::OnOffDelayedAllOffEffectVariant>(effectVariant);
-        if (typedEffectVariant == Clusters::OnOff::OnOffDelayedAllOffEffectVariant::kFadeToOffIn0p8Seconds)
+        auto typedEffectVariant = static_cast<Clusters::OnOff::DelayedAllOffEffectVariantEnum>(effectVariant);
+        if (typedEffectVariant == Clusters::OnOff::DelayedAllOffEffectVariantEnum::kDelayedOffFastFade)
         {
-            ChipLogProgress(Zcl, "OnOffDelayedAllOffEffectVariant::kFadeToOffIn0p8Seconds");
+            ChipLogProgress(Zcl, "DelayedAllOffEffectVariantEnum::kDelayedOffFastFade");
         }
-        else if (typedEffectVariant == Clusters::OnOff::OnOffDelayedAllOffEffectVariant::kNoFade)
+        else if (typedEffectVariant == Clusters::OnOff::DelayedAllOffEffectVariantEnum::kNoFade)
         {
-            ChipLogProgress(Zcl, "OnOffDelayedAllOffEffectVariant::kNoFade");
+            ChipLogProgress(Zcl, "DelayedAllOffEffectVariantEnum::kNoFade");
         }
-        else if (typedEffectVariant ==
-                 Clusters::OnOff::OnOffDelayedAllOffEffectVariant::k50PercentDimDownIn0p8SecondsThenFadeToOffIn12Seconds)
+        else if (typedEffectVariant == Clusters::OnOff::DelayedAllOffEffectVariantEnum::kDelayedOffSlowFade)
         {
-            ChipLogProgress(Zcl, "OnOffDelayedAllOffEffectVariant::k50PercentDimDownIn0p8SecondsThenFadeToOffIn12Seconds");
+            ChipLogProgress(Zcl, "DelayedAllOffEffectVariantEnum::kDelayedOffSlowFade");
         }
     }
-    else if (effectId == Clusters::OnOff::OnOffEffectIdentifier::kDyingLight)
+    else if (effectId == Clusters::OnOff::EffectIdentifierEnum::kDyingLight)
     {
-        auto typedEffectVariant = static_cast<Clusters::OnOff::OnOffDyingLightEffectVariant>(effectVariant);
-        if (typedEffectVariant ==
-            Clusters::OnOff::OnOffDyingLightEffectVariant::k20PercenterDimUpIn0p5SecondsThenFadeToOffIn1Second)
+        auto typedEffectVariant = static_cast<Clusters::OnOff::DyingLightEffectVariantEnum>(effectVariant);
+        if (typedEffectVariant == Clusters::OnOff::DyingLightEffectVariantEnum::kDyingLightFadeOff)
         {
-            ChipLogProgress(Zcl, "OnOffDyingLightEffectVariant::k20PercenterDimUpIn0p5SecondsThenFadeToOffIn1Second");
+            ChipLogProgress(Zcl, "DyingLightEffectVariantEnum::kDyingLightFadeOff");
         }
     }
 }
@@ -190,8 +209,8 @@ void OnTriggerOffWithEffect(OnOffEffect * effect)
 OnOffEffect gEffect = {
     chip::EndpointId{ 1 },
     OnTriggerOffWithEffect,
-    Clusters::OnOff::OnOffEffectIdentifier::kDelayedAllOff,
-    to_underlying(Clusters::OnOff::OnOffDelayedAllOffEffectVariant::kFadeToOffIn0p8Seconds),
+    Clusters::OnOff::EffectIdentifierEnum::kDelayedAllOff,
+    to_underlying(Clusters::OnOff::DelayedAllOffEffectVariantEnum::kDelayedOffFastFade),
 };
 
 } // namespace
@@ -252,6 +271,8 @@ void AppTask::InitServer(intptr_t arg)
 
     chip::Server::GetInstance().Init(initParams);
 
+    app::SetAttributePersistenceProvider(&gDeferredAttributePersister);
+
 #if CHIP_DEVICE_CONFIG_ENABLE_EXTENDED_DISCOVERY
     chip::app::DnssdServer::Instance().SetExtendedDiscoveryTimeoutSecs(extDiscTimeoutSecs);
 #endif
@@ -259,15 +280,23 @@ void AppTask::InitServer(intptr_t arg)
     // Open commissioning after boot if no fabric was available
     if (chip::Server::GetInstance().GetFabricTable().FabricCount() == 0)
     {
-        PlatformMgr().ScheduleWork(OpenCommissioning, 0);
+        ChipLogProgress(NotSpecified, "No fabrics, starting commissioning.");
+        AppTask::OpenCommissioning((intptr_t) 0);
     }
 }
 
 void AppTask::OpenCommissioning(intptr_t arg)
 {
     // Enable BLE advertisements
-    chip::Server::GetInstance().GetCommissioningWindowManager().OpenBasicCommissioningWindow();
-    ChipLogProgress(NotSpecified, "BLE advertising started. Waiting for Pairing.");
+
+    SystemLayer().ScheduleLambda([] {
+        CHIP_ERROR err;
+        err = chip::Server::GetInstance().GetCommissioningWindowManager().OpenBasicCommissioningWindow();
+        if (err == CHIP_NO_ERROR)
+        {
+            ChipLogProgress(NotSpecified, "BLE advertising started. Waiting for Pairing.");
+        }
+    });
 }
 
 CHIP_ERROR AppTask::Init()
@@ -488,10 +517,8 @@ void AppTask::FunctionHandler(AppEvent * aEvent)
             else
             {
                 // Enable BLE advertisements and pairing window
-                if (chip::Server::GetInstance().GetCommissioningWindowManager().OpenBasicCommissioningWindow() == CHIP_NO_ERROR)
-                {
-                    ChipLogProgress(NotSpecified, "BLE advertising started. Waiting for Pairing.");
-                }
+                AppTask::OpenCommissioning((intptr_t) 0);
+                ChipLogProgress(NotSpecified, "BLE advertising started. Waiting for Pairing.");
             }
         }
         else if (sAppTask.mFunctionTimerActive && sAppTask.mFunction == kFunction_SoftwareUpdate)

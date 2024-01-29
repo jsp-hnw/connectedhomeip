@@ -49,6 +49,9 @@ class TC_RVCOPSTATE_2_1(MatterBaseTest):
         asserts.assert_equal(operational_error.errorStateID, expected_error,
                              "errorStateID(%s) should equal %s" % (operational_error.errorStateID, expected_error))
 
+    def TC_RVCOPSTATE_2_1(self) -> list[str]:
+        return ["RVCOPSTATE.S"]
+
     @async_test_body
     async def test_TC_RVCOPSTATE_2_1(self):
 
@@ -190,11 +193,11 @@ class TC_RVCOPSTATE_2_1(MatterBaseTest):
                 self.print_step("7e", "Manually put the device in the unable to complete operation error state")
                 input("Press Enter when done.\n")
                 await self.read_and_validate_operror(step="7f", expected_error=Clusters.OperationalState.Enums.ErrorStateEnum.kUnableToCompleteOperation)
-            if self.check_pics("RVCOPSTATE.S.M.ERR_COMMAND_INVALID_STATE"):
+            if self.check_pics("RVCOPSTATE.S.M.ERR_COMMAND_INVALID_IN_STATE"):
                 self.print_step("7g", "Manually put the device in the command invalid error state")
                 input("Press Enter when done.\n")
                 await self.read_and_validate_operror(step="7h", expected_error=Clusters.OperationalState.Enums.ErrorStateEnum.kCommandInvalidInState)
-            if self.check_pics("RVCOPSTATE.S.M.ERR_FAILED_FIND_DOCK"):
+            if self.check_pics("RVCOPSTATE.S.M.ERR_FAILED_TO_FIND_CHARGING_DOCK"):
                 self.print_step("7i", "Manually put the device in the failed to find dock error state")
                 input("Press Enter when done.\n")
                 await self.read_and_validate_operror(step="7j", expected_error=Clusters.RvcOperationalState.Enums.ErrorStateEnum.kFailedToFindChargingDock)

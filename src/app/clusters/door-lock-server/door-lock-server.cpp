@@ -1,6 +1,6 @@
 /**
  *
- *    Copyright (c) 2020 Project CHIP Authors
+ *    Copyright (c) 2020 - 2024 Project CHIP Authors
  *
  *    Licensed under the Apache License, Version 2.0 (the "License");
  *    you may not use this file except in compliance with the License.
@@ -200,6 +200,18 @@ bool DoorLockServer::SetOneTouchLocking(chip::EndpointId endpointId, bool isEnab
 bool DoorLockServer::SetPrivacyModeButton(chip::EndpointId endpointId, bool isEnabled)
 {
     return SetAttribute(endpointId, Attributes::EnablePrivacyModeButton::Id, Attributes::EnablePrivacyModeButton::Set, isEnabled);
+}
+
+void DoorLockServer::HandleLocalLockOperationError(chip::EndpointId endpointId, LockOperationTypeEnum opType,
+                                                   OperationSourceEnum opSource, Nullable<uint16_t> userId)
+{
+    SendLockOperationEvent(endpointId, opType, opSource, OperationErrorEnum::kInvalidCredential, userId,
+                           Nullable<chip::FabricIndex>(), Nullable<chip::NodeId>(), Nullable<List<const LockOpCredentials>>(),
+                           false);
+
+    HandleWrongCodeEntry(endpointId);
+
+    ChipLogProgress(Zcl, "Handling a local Lock Operation Error: [endpoint=%d]", endpointId);
 }
 
 bool DoorLockServer::HandleWrongCodeEntry(chip::EndpointId endpointId)
@@ -1557,6 +1569,9 @@ bool DoorLockServer::getMaxNumberOfCredentials(chip::EndpointId endpointId, Cred
     case CredentialTypeEnum::kFace:
         status = emberAfPluginDoorLockGetNumberOfFaceCredentialsSupported(endpointId, maxNumberOfCredentials);
         break;
+    case CredentialTypeEnum::kAliroCredentialIssuerKey:
+    case CredentialTypeEnum::kAliroEvictableEndpointKey:
+    case CredentialTypeEnum::kAliroNonEvictableEndpointKey:
     default:
         return false;
     }
@@ -1815,7 +1830,7 @@ EmberAfStatus DoorLockServer::createUser(chip::EndpointId endpointId, chip::Fabr
         return static_cast<EmberAfStatus>(DlStatus::kOccupied);
     }
 
-    const auto & newUserName                = !userName.IsNull() ? userName.Value() : chip::CharSpan::fromCharString("");
+    const auto & newUserName                = !userName.IsNull() ? userName.Value() : ""_span;
     auto newUserUniqueId                    = userUniqueId.IsNull() ? 0xFFFFFFFF : userUniqueId.Value();
     auto newUserStatus                      = userStatus.IsNull() ? UserStatusEnum::kOccupiedEnabled : userStatus.Value();
     auto newUserType                        = userType.IsNull() ? UserTypeEnum::kUnrestrictedUser : userType.Value();
@@ -1973,7 +1988,7 @@ Status DoorLockServer::clearUser(chip::EndpointId endpointId, chip::FabricIndex 
     }
 
     // Remove the user entry
-    if (!emberAfPluginDoorLockSetUser(endpointId, userIndex, kUndefinedFabricIndex, kUndefinedFabricIndex, chip::CharSpan(""), 0,
+    if (!emberAfPluginDoorLockSetUser(endpointId, userIndex, kUndefinedFabricIndex, kUndefinedFabricIndex, ""_span, 0,
                                       UserStatusEnum::kAvailable, UserTypeEnum::kUnrestrictedUser, CredentialRuleEnum::kSingle,
                                       nullptr, 0))
     {
@@ -3132,8 +3147,10 @@ bool DoorLockServer::sendRemoteLockUserChange(chip::EndpointId endpointId, LockD
     }
     ChipLogProgress(Zcl,
                     "[RemoteLockUserChange] Sent lock user change event "
-                    "[endpointId=%d,eventNumber=%" PRIu64 ",dataType=%u,operation=%u,nodeId=%" PRIu64 ",fabricIndex=%d]",
-                    endpointId, eventNumber, to_underlying(dataType), to_underlying(operation), nodeId, fabricIndex);
+                    "[endpointId=%d,eventNumber=0x" ChipLogFormatX64 ",dataType=%u,operation=%u,nodeId=0x" ChipLogFormatX64
+                    ",fabricIndex=%d]",
+                    endpointId, ChipLogValueX64(eventNumber), to_underlying(dataType), to_underlying(operation),
+                    ChipLogValueX64(nodeId), fabricIndex);
     return true;
 }
 
@@ -3153,6 +3170,12 @@ LockDataTypeEnum DoorLockServer::credentialTypeToLockDataType(CredentialTypeEnum
         return LockDataTypeEnum::kFingerVein;
     case CredentialTypeEnum::kFace:
         return LockDataTypeEnum::kFace;
+    case CredentialTypeEnum::kAliroCredentialIssuerKey:
+        return LockDataTypeEnum::kAliroCredentialIssuerKey;
+    case CredentialTypeEnum::kAliroEvictableEndpointKey:
+        return LockDataTypeEnum::kAliroEvictableEndpointKey;
+    case CredentialTypeEnum::kAliroNonEvictableEndpointKey:
+        return LockDataTypeEnum::kAliroNonEvictableEndpointKey;
     case CredentialTypeEnum::kUnknownEnumValue:
         return LockDataTypeEnum::kUnspecified;
     }
