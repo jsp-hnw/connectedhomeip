@@ -33,5 +33,5 @@ RUN set -x \
     && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
     ca-certificates pkg-config python3-venv
 
-#COPY rootnode_dimmablelight_bCwGYSDpoe /sbin/
-#COPY chip-tool /sbin/
+COPY rootnode_dimmablelight_bCwGYSDpoe /sbin/
+COPY chip-tool /sbin/
