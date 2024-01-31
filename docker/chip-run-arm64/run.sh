@@ -36,12 +36,12 @@ GHCR_ORG="ghcr.io"
 # directory name is
 IMAGE=${DOCKER_RUN_IMAGE:-$(basename "$here")}
 
-# version
-VERSION=${DOCKER_RUN_VERSION:-$(sed 's/ .*//' "$here/version")} ||
-    die "please run me from an image directory or set environment variables:
-          DOCKER_RUN_ORG
-          DOCKER_RUN_IMAGE
-          DOCKER_RUN_VERSION"
+# # version
+# VERSION=${DOCKER_RUN_VERSION:-$(sed 's/ .*//' "$here/version")} ||
+#     die "please run me from an image directory or set environment variables:
+#           DOCKER_RUN_ORG
+#           DOCKER_RUN_IMAGE
+#           DOCKER_RUN_VERSION"
 
 # full image name
 FULL_IMAGE_NAME="$GHCR_ORG/$ORG/$IMAGE${VERSION:+:${VERSION}}"
@@ -111,7 +111,7 @@ done
 #RUN_DIR_HOST=$HOME
 #RUN_DIR_DOCKER=$HOME
 
-RUN_DIR_HOST="$here/../../"
-RUN_DIR_DOCKER="/connectedhomeip/"
+RUN_DIR_HOST="/tmp"
+RUN_DIR_DOCKER="/tmp"
 mkdir -p $HOME/.docker_root
 docker run --platform linux/arm64 -it "${runargs[@]}" --rm --mount "source=/var/run/docker.sock,target=/var/run/docker.sock,type=bind" -v "$HOME/.docker_root:/root" -w "$RUN_DIR_DOCKER" -v "$RUN_DIR_HOST:$RUN_DIR_DOCKER" "$IMAGE" "$@"
