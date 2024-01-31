@@ -111,7 +111,7 @@ done
 #RUN_DIR_HOST=$HOME
 #RUN_DIR_DOCKER=$HOME
 
-RUN_DIR_HOST="$here/../../../../../"
+RUN_DIR_HOST="$here/../../"
 RUN_DIR_DOCKER="/connectedhomeip/"
 mkdir -p $HOME/.docker_root
-docker run --platform linux/arm64 -it "${runargs[@]}" --rm --mount "source=/var/run/docker.sock,target=/var/run/docker.sock,type=bind" -v "$HOME/.docker_root:/root" -w "$RUN_DIR_DOCKER" -v "$RUN_DIR_HOST:$RUN_DIR_DOCKER" "$IMAGE" "$@"
+docker run --platform linux/amd64 -it "${runargs[@]}" --rm --mount "source=/var/run/docker.sock,target=/var/run/docker.sock,type=bind" -v "$HOME/.docker_root:/root" -w "$RUN_DIR_DOCKER" -v "$RUN_DIR_HOST:$RUN_DIR_DOCKER" "$IMAGE" "$@"
