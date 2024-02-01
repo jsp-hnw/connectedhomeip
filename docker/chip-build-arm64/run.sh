@@ -114,4 +114,8 @@ done
 RUN_DIR_HOST="$here/../../"
 RUN_DIR_DOCKER="/connectedhomeip/"
 mkdir -p $HOME/.docker_root
-docker run --platform linux/arm64 -it "${runargs[@]}" --rm --mount "source=/var/run/docker.sock,target=/var/run/docker.sock,type=bind" -v "$HOME/.docker_root:/root" -w "$RUN_DIR_DOCKER" -v "$RUN_DIR_HOST:$RUN_DIR_DOCKER" "$IMAGE" "$@"
+docker run --platform linux/arm64 -it "${runargs[@]}" --rm --mount "source=/var/run/docker.sock,target=/var/run/docker.sock,type=bind" \
+    -v "$HOME/.docker_root:/root" -w "$RUN_DIR_DOCKER" -v "$RUN_DIR_HOST:$RUN_DIR_DOCKER" \
+    --privileged \
+    --sysctl "net.ipv6.conf.all.disable_ipv6=0 net.ipv4.conf.all.forwarding=1 net.ipv6.conf.all.forwarding=1" \
+    "$IMAGE" "$@"
