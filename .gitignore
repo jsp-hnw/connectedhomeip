@@ -85,3 +85,4 @@ examples/*/esp32/dependencies.lock
 .ipynb_checkpoints
 
 docker/chip-run-arm64/chip-tool
+chip-run-arm64.tgz
