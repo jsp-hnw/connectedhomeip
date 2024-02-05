@@ -93,6 +93,7 @@ RUN set -x \
     unzip \
     wget \
     zlib1g-dev \
+    iputils-ping \
     && rm -rf /var/lib/apt/lists/ \
     && git lfs install \
     && : # last line

@@ -1,54 +1,9 @@
 #!/usr/bin/env bash
 set -x
-#
-#    Copyright (c) 2020 Project CHIP Authors
-#
-#    Licensed under the Apache License, Version 2.0 (the "License");
-#    you may not use this file except in compliance with the License.
-#    You may obtain a copy of the License at
-#
-#        http://www.apache.org/licenses/LICENSE-2.0
-#
-#    Unless required by applicable law or agreed to in writing, software
-#    distributed under the License is distributed on an "AS IS" BASIS,
-#    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-#    See the License for the specific language governing permissions and
-#    limitations under the License.
-#
-
-# run.sh   - utility for running a Docker image
-#
-# This script expects to live in a directory named after the image
-#  with a version file next to it.  So: use symlinks
-#
 here=$(cd "$(dirname "$0")" && pwd)
 me=$(basename "$0")
 
-die() {
-    echo "$me: *** ERROR: $*"
-    exit 1
-}
-
-ORG=${DOCKER_RUN_ORG:-project-chip}
-
-GHCR_ORG="ghcr.io"
-
-# directory name is
-IMAGE=${DOCKER_RUN_IMAGE:-$(basename "$here")}
-
-# version
-VERSION=${DOCKER_RUN_VERSION:-$(sed 's/ .*//' "$here/version")} ||
-    die "please run me from an image directory or set environment variables:
-          DOCKER_RUN_ORG
-          DOCKER_RUN_IMAGE
-          DOCKER_RUN_VERSION"
-
-# full image name
-FULL_IMAGE_NAME="$GHCR_ORG/$ORG/$IMAGE${VERSION:+:${VERSION}}"
-
-DOCKER_RUN_DIR=${HOME}
-# where
-RUN_DIR=${DOCKER_RUN_DIR:-$(pwd)}
+IMAGE=chip-build-arm64
 
 help() {
     set +x
@@ -107,15 +62,10 @@ for arg in "$@"; do
     esac
 done
 
-#docker pull "$FULL_IMAGE_NAME" || "$here"/build.sh
-#RUN_DIR_HOST=$HOME
-#RUN_DIR_DOCKER=$HOME
-
 RUN_DIR_HOST="$here/../../"
 RUN_DIR_DOCKER="/connectedhomeip/"
-mkdir -p $HOME/.docker_root
-docker run --platform linux/arm64 -it "${runargs[@]}" --rm --mount "source=/var/run/docker.sock,target=/var/run/docker.sock,type=bind" \
-    -v "$HOME/.docker_root:/root" -w "$RUN_DIR_DOCKER" -v "$RUN_DIR_HOST:$RUN_DIR_DOCKER" \
-    --privileged \
-    --sysctl "net.ipv6.conf.all.disable_ipv6=0 net.ipv4.conf.all.forwarding=1 net.ipv6.conf.all.forwarding=1" \
-    "$IMAGE" "$@"
+docker run --platform linux/arm64 -it "${runargs[@]}" --rm \
+    --sysctl "net.ipv6.conf.all.disable_ipv6=0 net.ipv6.conf.all.accept_ra=2" --privileged \
+    --mount "source=/var/run/docker.sock,target=/var/run/docker.sock,type=bind" -w "$RUN_DIR_DOCKER" -v "$RUN_DIR_HOST:$RUN_DIR_DOCKER" "$IMAGE" "$@"
+# need to add default route within container
+# ip -6 route add default via fd11:1111:1122:2222:42:acff:fe11:2 dev eth0

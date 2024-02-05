@@ -1,4 +1,4 @@
-# start with Ubuntu 20.04LTS
+# start with Ubuntu 22.04LTS
 FROM ubuntu:jammy
 LABEL org.opencontainers.image.source https://github.com/project-chip/connectedhomeip
 
@@ -93,6 +93,7 @@ RUN set -x \
     unzip \
     wget \
     zlib1g-dev \
+    iputils-ping \
     && rm -rf /var/lib/apt/lists/ \
     && git lfs install \
     && : # last line
