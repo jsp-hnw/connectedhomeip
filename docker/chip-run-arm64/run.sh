@@ -64,7 +64,7 @@ done
 
 RUN_DIR_HOST="$here/../../"
 RUN_DIR_DOCKER="/connectedhomeip/"
-docker run --platform linux/arm64 -it --name "$IMAGE" --rm \
+docker run --platform linux/arm64 -it --rm \
     --sysctl "net.ipv6.conf.all.disable_ipv6=0 net.ipv6.conf.all.accept_ra=1" \
     "${runargs[@]}" --privileged \
     --mount "source=/var/run/docker.sock,target=/var/run/docker.sock,type=bind" -w "$RUN_DIR_DOCKER" -v "$RUN_DIR_HOST:$RUN_DIR_DOCKER" "$IMAGE" "$@"
