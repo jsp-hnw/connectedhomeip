@@ -26,7 +26,7 @@ if [[ ${*/--no-cache//} != "${*}" ]]; then
 fi
 
 [[ ${*/--skip-build//} != "${*}" ]] || {
-    docker buildx build --platform linux/arm64 "${BUILD_ARGS[@]}" -t "$IMAGE" .
+    docker buildx build --platform linux/arm64 "${BUILD_ARGS[@]}" -t "$IMAGE" --build-arg USER_UID="$UID" --build-arg TARGETPLATFORM="linux/arm64" .
     docker image prune --force
 }
 

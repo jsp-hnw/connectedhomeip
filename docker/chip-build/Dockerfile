@@ -5,6 +5,9 @@ LABEL org.opencontainers.image.source https://github.com/project-chip/connectedh
 VOLUME "/var/source"
 
 ARG TARGETPLATFORM=linux/amd64
+ARG USERNAME=humax
+ARG USER_UID=1000
+ARG USER_GID=$USER_UID
 
 # Ensure TARGETPLATFORM is set
 RUN case ${TARGETPLATFORM} in \
@@ -94,6 +97,7 @@ RUN set -x \
     wget \
     zlib1g-dev \
     iputils-ping \
+    sudo \
     && rm -rf /var/lib/apt/lists/ \
     && git lfs install \
     && : # last line
@@ -267,3 +271,11 @@ RUN case ${TARGETPLATFORM} in \
     && cd .. \
     && rm -rf node_js \
     && : # last line
+
+RUN groupadd -g $USER_GID $USERNAME \
+    && useradd -s /bin/bash -u $USER_UID -g $USER_GID -G sudo -m $USERNAME \
+    && echo $USERNAME ALL=\(root\) NOPASSWD:ALL > /etc/sudoers.d/$USERNAME \
+    && chmod 0440 /etc/sudoers.d/$USERNAME \
+    && :
+
+USER $USERNAME
