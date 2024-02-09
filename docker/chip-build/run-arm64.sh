@@ -64,7 +64,17 @@ done
 
 RUN_DIR_HOST="$here/../../"
 RUN_DIR_DOCKER="/connectedhomeip/"
-docker run --platform linux/arm64 -it --rm \
+
+context=$(docker context show)
+if [ "$context" == "default" ]; then
+    uid=$(id -u)
+    gid=$(id -g)
+else # if docker desktop
+    uid=root
+    gid=root
+fi
+
+docker run --platform linux/arm64 -it --rm --user $uid:$gid \
     --sysctl "net.ipv6.conf.all.disable_ipv6=0 net.ipv6.conf.all.accept_ra=1" \
     "${runargs[@]}" --privileged \
     --mount "source=/var/run/docker.sock,target=/var/run/docker.sock,type=bind" -w "$RUN_DIR_DOCKER" -v "$RUN_DIR_HOST:$RUN_DIR_DOCKER" "$IMAGE" "$@"

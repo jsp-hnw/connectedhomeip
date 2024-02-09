@@ -278,4 +278,4 @@ RUN groupadd -g $USER_GID $USERNAME \
     && chmod 0440 /etc/sudoers.d/$USERNAME \
     && :
 
-USER $USERNAME
+#USER $USERNAME
