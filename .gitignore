@@ -86,3 +86,5 @@ examples/*/esp32/dependencies.lock
 
 docker/chip-run-arm64/chip-tool
 chip-run-arm64.tgz
+docker/chip-build-imx/gcc-cross-aarch64-11.3.0.tar.gz
+docker/chip-build-imx/rdkb-generic-broadband-image_rdk-next_20240217041934.rootfs.tar.gz
