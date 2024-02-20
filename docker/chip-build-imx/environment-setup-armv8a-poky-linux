@@ -1,0 +1,65 @@
+# Check for LD_LIBRARY_PATH being set, which can break SDK and generally is a bad practice
+# http://tldp.org/HOWTO/Program-Library-HOWTO/shared-libraries.html#AEN80
+# http://xahlee.info/UnixResource_dir/_/ldpath.html
+# Only disable this check if you are absolutely know what you are doing!
+if [ ! -z "$LD_LIBRARY_PATH" ]; then
+    echo "Your environment is misconfigured, you probably need to 'unset LD_LIBRARY_PATH'"
+    echo "but please check why this was set in the first place and that it's safe to unset."
+    echo "The SDK will not operate correctly in most cases when LD_LIBRARY_PATH is set."
+    echo "For more references see:"
+    echo "  http://tldp.org/HOWTO/Program-Library-HOWTO/shared-libraries.html#AEN80"
+    echo "  http://xahlee.info/UnixResource_dir/_/ldpath.html"
+    return 1
+fi
+
+export SDKTARGETSYSROOT=/opt/humax-rdkb-raspberry-pi/sysroots
+#export PATH=${IMX_SDK_ROOT}/sysroots/x86_64-pokysdk-linux/usr/bin:${IMX_SDK_ROOT}/sysroots/x86_64-pokysdk-linux/usr/sbin:${IMX_SDK_ROOT}/sysroots/x86_64-pokysdk-linux/bin:${IMX_SDK_ROOT}/sysroots/x86_64-pokysdk-linux/sbin:${IMX_SDK_ROOT}/sysroots/x86_64-pokysdk-linux/usr/bin/aarch64-rdk-linux:${IMX_SDK_ROOT}/sysroots/x86_64-pokysdk-linux/usr/bin/aarch64-rdk-linux-musl:$PATH
+export PATH=${IMX_SDK_ROOT}/toolchain/gcc-cross-aarch64-11.3.0/usr/bin/aarch64-rdk-linux:$PATH
+export PKG_CONFIG_SYSROOT_DIR=$SDKTARGETSYSROOT
+export PKG_CONFIG_PATH=$SDKTARGETSYSROOT/usr/lib/pkgconfig:$SDKTARGETSYSROOT/usr/share/pkgconfig
+export CONFIG_SITE=${IMX_SDK_ROOT}/site-config-armv8a-poky-linux
+export OECORE_NATIVE_SYSROOT="${IMX_SDK_ROOT}/sysroots/x86_64-pokysdk-linux"
+export OECORE_TARGET_SYSROOT="$SDKTARGETSYSROOT"
+export OECORE_ACLOCAL_OPTS="-I ${IMX_SDK_ROOT}/sysroots/x86_64-pokysdk-linux/usr/share/aclocal"
+export OECORE_BASELIB="lib"
+export OECORE_TARGET_ARCH="aarch64"
+export OECORE_TARGET_OS="linux"
+unset command_not_found_handle
+export CC="aarch64-rdk-linux-gcc  -march=armv8-a+crc+crypto -fstack-protector-strong  -O2 -D_FORTIFY_SOURCE=2 -Wformat -Wformat-security -Werror=format-security --sysroot=$SDKTARGETSYSROOT"
+export CXX="aarch64-rdk-linux-g++  -march=armv8-a+crc+crypto -fstack-protector-strong  -O2 -D_FORTIFY_SOURCE=2 -Wformat -Wformat-security -Werror=format-security --sysroot=$SDKTARGETSYSROOT"
+export CPP="aarch64-rdk-linux-gcc -E  -march=armv8-a+crc+crypto -fstack-protector-strong  -O2 -D_FORTIFY_SOURCE=2 -Wformat -Wformat-security -Werror=format-security --sysroot=$SDKTARGETSYSROOT"
+export AS="aarch64-rdk-linux-as "
+export LD="aarch64-rdk-linux-ld  --sysroot=$SDKTARGETSYSROOT"
+export GDB=aarch64-rdk-linux-gdb
+export STRIP=aarch64-rdk-linux-strip
+export RANLIB=aarch64-rdk-linux-ranlib
+export OBJCOPY=aarch64-rdk-linux-objcopy
+export OBJDUMP=aarch64-rdk-linux-objdump
+export READELF=aarch64-rdk-linux-readelf
+export AR=aarch64-rdk-linux-ar
+export NM=aarch64-rdk-linux-nm
+export M4=m4
+export TARGET_PREFIX=aarch64-rdk-linux-
+export CONFIGURE_FLAGS="--target=aarch64-rdk-linux --host=aarch64-rdk-linux --build=x86_64-linux --with-libtool-sysroot=$SDKTARGETSYSROOT"
+export CFLAGS=" -O2 -pipe -g -feliminate-unused-debug-types "
+export CXXFLAGS=" -O2 -pipe -g -feliminate-unused-debug-types "
+export LDFLAGS="-Wl,-O1 -Wl,--hash-style=gnu -Wl,--as-needed  -Wl,-z,relro,-z,now"
+export CPPFLAGS=""
+export KCFLAGS="--sysroot=$SDKTARGETSYSROOT"
+export OECORE_DISTRO_VERSION="6.1-langdale"
+export OECORE_SDK_VERSION="6.1-langdale"
+export ARCH=arm64
+export CROSS_COMPILE=aarch64-rdk-linux-
+export OECORE_TUNE_CCARGS=" -march=armv8-a+crc+crypto"
+
+# Append environment subscripts
+if [ -d "$OECORE_TARGET_SYSROOT/environment-setup.d" ]; then
+    for envfile in $OECORE_TARGET_SYSROOT/environment-setup.d/*.sh; do
+        . $envfile
+    done
+fi
+if [ -d "$OECORE_NATIVE_SYSROOT/environment-setup.d" ]; then
+    for envfile in $OECORE_NATIVE_SYSROOT/environment-setup.d/*.sh; do
+        . $envfile
+    done
+fi
