@@ -22,11 +22,24 @@ RUN set -x \
     && find . -iname ".debug" -exec rm -rf "{}" + || true \
     && : # last line
 
+RUN set -x \
+    && wget --quiet http://10.250.6.67/http/share/rdk-glibc-x86_64-aarch64-toolchain-2.0.sh \
+    && chmod a+x rdk-glibc-x86_64-aarch64-toolchain-2.0.sh \
+    && ./rdk-glibc-x86_64-aarch64-toolchain-2.0.sh -y -d /opt/humax-rdkb-raspberry-pi \
+    && rm -rf rdk-glibc-x86_64-aarch64-toolchain-2.0.sh \
+    && : # last line
+RUN set -x \
+    && cd /opt/humax-rdkb-raspberry-pi \
+    # && find . -iname debug -exec rm -rf "{}" + || true  \
+    && find . -iname ".debug" -exec rm -rf "{}" + || true \
+    && : # last line
+
 # FROM ghcr.io/project-chip/chip-build:${VERSION}
 FROM ubuntu:jammy
 LABEL org.opencontainers.image.source https://github.com/project-chip/connectedhomeip
 
 COPY --from=build /opt/fsl-imx-xwayland /opt/fsl-imx-xwayland
+COPY --from=build /opt/humax-rdkb-raspberry-pi /opt/humax-rdkb-raspberry-pi
 
 VOLUME "/var/source"
 
@@ -312,15 +325,3 @@ RUN set -x \
     && groupadd -g $USER_GID $USER_NAME \
     && useradd -m $USER_NAME -s /bin/bash -u $USER_UID -g $USER_GID -G sudo -l \
     && : # last line
-
-RUN curl http://10.250.6.67/http/share/gcc-cross-aarch64-11.3.0.tar.gz -o /tmp/gcc-cross-aarch64-11.3.0.tar.gz && \
-    mkdir -p ${IMX_SDK_ROOT}/toolchain/gcc-cross-aarch64-11.3.0 && \
-    tar xvfz /tmp/gcc-cross-aarch64-11.3.0.tar.gz -C ${IMX_SDK_ROOT}/toolchain/gcc-cross-aarch64-11.3.0
-
-RUN curl http://10.250.6.67/http/share/rdkb-generic-broadband-image_rdk-next_20240217041934.rootfs.tar.gz -o /tmp/rdkb-generic-broadband-image_rdk-next_20240217041934.rootfs.tar.gz && \
-    mkdir -p ${IMX_SDK_ROOT}/sysroots && \
-    tar xvfz /tmp/rdkb-generic-broadband-image_rdk-next_20240217041934.rootfs.tar.gz -C ${IMX_SDK_ROOT}/sysroots
-
-COPY ./environment-setup-armv8a-poky-linux ${IMX_SDK_ROOT}/
-COPY ./site-config-armv8a-poky-linux ${IMX_SDK_ROOT}/
-COPY ./version-armv8a-poky-linux ${IMX_SDK_ROOT}/

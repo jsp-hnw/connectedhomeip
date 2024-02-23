@@ -112,9 +112,9 @@ import(\"//build_overrides/build.gni\")
 sysroot=\"$sdk_target_sysroot\"
 target_cflags=[ \"$PLATFORM_CFLAGS\" ]
 custom_toolchain=\"\${build_root}/toolchain/custom\"
-target_cc=\"$IMX_SDK_ROOT/sysroots/x86_64-pokysdk-linux/usr/bin/$cross_compile/$cc\"
-target_cxx=\"$IMX_SDK_ROOT/sysroots/x86_64-pokysdk-linux/usr/bin/$cross_compile/$cxx\"
-target_ar=\"$IMX_SDK_ROOT/sysroots/x86_64-pokysdk-linux/usr/bin/$cross_compile/$cross_compile-ar\"
+target_cc=\"$IMX_SDK_ROOT/sysroots/x86_64-rdksdk-linux/usr/bin/$cross_compile/$cc\"
+target_cxx=\"$IMX_SDK_ROOT/sysroots/x86_64-rdksdk-linux/usr/bin/$cross_compile/$cxx\"
+target_ar=\"$IMX_SDK_ROOT/sysroots/x86_64-rdksdk-linux/usr/bin/$cross_compile/$cross_compile-ar\"
 $(if [ "$release_build" = "true" ]; then echo "is_debug=false"; else echo "optimize_debug=true"; fi)"
 
 ninja -C "$2"
