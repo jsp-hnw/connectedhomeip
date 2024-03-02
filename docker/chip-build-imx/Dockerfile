@@ -10,20 +10,10 @@ RUN set -x \
     && rm -rf /var/lib/apt/lists/ \
     && : # last line
 WORKDIR /opt
-RUN set -x \
-    && wget --quiet https://www.nxp.com/lgfiles/IMM/6.1-langdale-imx8mm-matter-toolchain.sh \
-    && chmod a+x 6.1-langdale-imx8mm-matter-toolchain.sh \
-    && ./6.1-langdale-imx8mm-matter-toolchain.sh -y \
-    && rm -rf 6.1-langdale-imx8mm-matter-toolchain.sh \
-    && : # last line
-RUN set -x \
-    && cd /opt/fsl-imx-xwayland \
-    # && find . -iname debug -exec rm -rf "{}" + || true  \
-    && find . -iname ".debug" -exec rm -rf "{}" + || true \
-    && : # last line
 
+COPY rdk-glibc-x86_64-aarch64-toolchain-2.0.sh /opt/
 RUN set -x \
-    && wget --quiet http://10.250.6.67/http/share/rdk-glibc-x86_64-aarch64-toolchain-2.0.sh \
+    && `# wget --quiet http://10.250.6.67/http/share/rdk-glibc-x86_64-aarch64-toolchain-2.0.sh` \
     && chmod a+x rdk-glibc-x86_64-aarch64-toolchain-2.0.sh \
     && ./rdk-glibc-x86_64-aarch64-toolchain-2.0.sh -y -d /opt/humax-rdkb-raspberry-pi \
     && rm -rf rdk-glibc-x86_64-aarch64-toolchain-2.0.sh \
@@ -38,7 +28,6 @@ RUN set -x \
 FROM ubuntu:jammy
 LABEL org.opencontainers.image.source https://github.com/project-chip/connectedhomeip
 
-COPY --from=build /opt/fsl-imx-xwayland /opt/fsl-imx-xwayland
 COPY --from=build /opt/humax-rdkb-raspberry-pi /opt/humax-rdkb-raspberry-pi
 
 VOLUME "/var/source"
@@ -313,7 +302,6 @@ RUN case ${TARGETPLATFORM} in \
 
 # -------------------------------------------------------------------------------
 
-### ENV IMX_SDK_ROOT=/opt/fsl-imx-xwayland/6.1-langdale/
 ENV IMX_SDK_ROOT=/opt/humax-rdkb-raspberry-pi/
 
 ARG USER_NAME=humax
