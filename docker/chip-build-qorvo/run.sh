@@ -34,7 +34,7 @@ ORG=${DOCKER_RUN_ORG:-project-chip}
 
 GHCR_ORG="ghcr.io"
 
-FULL_IMAGE_NAME=chip-build-tizen
+FULL_IMAGE_NAME=chip-build-qorvo
 
 # version
 VERSION=${DOCKER_RUN_VERSION:-$(sed 's/ .*//' "$here/version")} ||
@@ -118,4 +118,4 @@ fi
 
 docker run "${runargs[@]}" --rm -it --user $uid:$gid \
     --mount "source=/var/run/docker.sock,target=/var/run/docker.sock,type=bind" \
-    -w "$RUN_DIR_DOCKER" -v "$RUN_DIR_HOST:$RUN_DIR_DOCKER" "$FULL_IMAGE_NAME" "$@"
+    -w "$RUN_DIR_DOCKER" -v "/opt:/opt" -v "$RUN_DIR_HOST:$RUN_DIR_DOCKER" "$FULL_IMAGE_NAME" "$@"

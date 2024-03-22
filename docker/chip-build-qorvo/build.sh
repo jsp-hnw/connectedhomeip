@@ -28,7 +28,7 @@ cd "$(dirname "$0")"
 GHCR_ORG="ghcr.io"
 ORG=${DOCKER_BUILD_ORG:-project-chip}
 
-IMAGE=chip-build-tizen
+IMAGE=chip-build-qorvo
 
 # version
 VERSION=${DOCKER_BUILD_VERSION:-$(sed 's/ .*//' version)}
