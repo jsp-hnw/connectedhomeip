@@ -27,4 +27,4 @@ RUN set -x \
 COPY imx.py /usr/local
 COPY startup.sh /usr/local/bin
 
-ENV IMX_SDK_ROOT=/opt/humax-yocto-raspberry-pi/
+ENV IMX_SDK_ROOT=/opt/humax-rdkb-raspberry-pi/

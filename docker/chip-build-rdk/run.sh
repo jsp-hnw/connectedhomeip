@@ -21,6 +21,7 @@
 # This script expects to live in a directory named after the image
 #  with a version file next to it.  So: use symlinks
 #
+set -x
 here=$(cd "$(dirname "$0")" && pwd)
 me=$(basename "$0")
 
@@ -33,7 +34,7 @@ ORG=${DOCKER_RUN_ORG:-project-chip}
 
 GHCR_ORG="ghcr.io"
 
-FULL_IMAGE_NAME=chip-build-imx
+FULL_IMAGE_NAME=$(basename "$(pwd)")
 
 # version
 VERSION=${DOCKER_RUN_VERSION:-$(sed 's/ .*//' "$here/version")} ||
@@ -117,4 +118,4 @@ fi
 
 docker run "${runargs[@]}" --rm -it --user $uid:$gid \
     --mount "source=/var/run/docker.sock,target=/var/run/docker.sock,type=bind" \
-    -w "$RUN_DIR_DOCKER" -v "$RUN_DIR_HOST:$RUN_DIR_DOCKER" "$FULL_IMAGE_NAME" "$@"
+    -w "$RUN_DIR_DOCKER" -v "/opt:/opt" -v "$RUN_DIR_HOST:$RUN_DIR_DOCKER" "$FULL_IMAGE_NAME" "$@"

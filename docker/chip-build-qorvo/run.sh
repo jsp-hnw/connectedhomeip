@@ -34,7 +34,7 @@ ORG=${DOCKER_RUN_ORG:-project-chip}
 
 GHCR_ORG="ghcr.io"
 
-FULL_IMAGE_NAME=chip-build-qorvo
+FULL_IMAGE_NAME=$(basename "$(pwd)")
 
 # version
 VERSION=${DOCKER_RUN_VERSION:-$(sed 's/ .*//' "$here/version")} ||
