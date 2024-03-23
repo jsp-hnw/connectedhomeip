@@ -1,6 +1,5 @@
 # This minimal build image is intentionally not based on chip-build
 FROM ubuntu:jammy
-
 RUN set -x \
     && apt-get update \
     && DEBIAN_FRONTEND=noninteractive apt-get upgrade -y \
