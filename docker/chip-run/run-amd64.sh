@@ -3,11 +3,11 @@ set -x
 here=$(cd "$(dirname "$0")" && pwd)
 me=$(basename "$0")
 
-IMAGE=chip-run-arm64
+IMAGE=chip-run-amd64
 
 help() {
-    set +x
-    echo "Usage: $me [RUN_OPTIONS -- ] command
+  set +x
+  echo "Usage: $me [RUN_OPTIONS -- ] command
 
   Run a command in a docker image described by $here
 
@@ -37,36 +37,36 @@ runargs=()
 
 # extract run options
 for arg in "$@"; do
-    case "$arg" in
-    --help)
-        help
-        exit
-        ;;
+  case "$arg" in
+  --help)
+    help
+    exit
+    ;;
 
-    --)
-        shift
-        break
-        ;;
+  --)
+    shift
+    break
+    ;;
 
-    -*)
-        runargs+=("$arg")
-        shift
-        ;;
+  -*)
+    runargs+=("$arg")
+    shift
+    ;;
 
-    *)
-        ((!${#runargs[*]})) && break
-        runargs+=("$arg")
-        shift
-        ;;
+  *)
+    ((!${#runargs[*]})) && break
+    runargs+=("$arg")
+    shift
+    ;;
 
-    esac
+  esac
 done
 
 RUN_DIR_HOST="$here/../../"
 RUN_DIR_DOCKER="/connectedhomeip/"
-docker run --network=host --platform linux/arm64 -it --rm \
-    "${runargs[@]}" --privileged \
-    --mount "source=/var/run/docker.sock,target=/var/run/docker.sock,type=bind" \
-    -v "/var/run/dbus/:/var/run/dbus/:z" \
-    -w "$RUN_DIR_DOCKER" \
-    -v "$RUN_DIR_HOST:$RUN_DIR_DOCKER" "$IMAGE" "$@"
+docker run --network=host --platform linux/amd64 -it --rm \
+  "${runargs[@]}" --privileged \
+  --mount "source=/var/run/docker.sock,target=/var/run/docker.sock,type=bind" \
+  -v "/var/run/dbus/:/var/run/dbus/:z" \
+  -w "$RUN_DIR_DOCKER" \
+  -v "$RUN_DIR_HOST:$RUN_DIR_DOCKER" "$IMAGE" "$@"
