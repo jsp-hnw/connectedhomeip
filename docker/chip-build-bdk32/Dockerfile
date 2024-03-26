@@ -29,7 +29,7 @@ RUN set -x \
 COPY imx.py /usr/local
 COPY startup.sh /usr/local/bin
 
-ENV TOOLCHAIN_ROOT=/opt/toolchains/crosstools-arm_softfp-gcc-10.3-linux-4.19-glibc-2.32-binutils-2.36.1/
+ENV TOOLCHAIN_ROOT=/opt/toolchains/crosstools-arm_softfp-gcc-10.3-linux-4.19-glibc-2.32-binutils-2.36.1-chip-build/
 ENV TOOLCHAIN_SYSROOT=${TOOLCHAIN_ROOT}/arm-buildroot-linux-gnueabi/sysroot/
 ENV HUMAX_SYSROOT=${TOOLCHAIN_ROOT}/arm-buildroot-linux-gnueabi/sysroot-humax/
 ENV PKG_CONFIG_PATH=${TOOLCHAIN_SYSROOT}/usr/lib/pkgconfig
