@@ -37,11 +37,6 @@ GHCR_ORG="ghcr.io"
 FULL_IMAGE_NAME=$(basename "$(pwd)")
 
 # version
-VERSION=${DOCKER_RUN_VERSION:-$(sed 's/ .*//' "$here/version")} ||
-    die "please run me from an image directory or set environment variables:
-          DOCKER_RUN_ORG
-          DOCKER_RUN_IMAGE
-          DOCKER_RUN_VERSION"
 
 # where
 RUN_DIR=${DOCKER_RUN_DIR:-$(pwd)}

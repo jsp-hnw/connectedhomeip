@@ -1,45 +1,9 @@
 #!/usr/bin/env bash
-
-#
-#    Copyright (c) 2020 Project CHIP Authors
-#
-#    Licensed under the Apache License, Version 2.0 (the "License");
-#    you may not use this file except in compliance with the License.
-#    You may obtain a copy of the License at
-#
-#        http://www.apache.org/licenses/LICENSE-2.0
-#
-#    Unless required by applicable law or agreed to in writing, software
-#    distributed under the License is distributed on an "AS IS" BASIS,
-#    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-#    See the License for the specific language governing permissions and
-#    limitations under the License.
-#
-
-# run.sh   - utility for running a Docker image
-#
-# This script expects to live in a directory named after the image
-#  with a version file next to it.  So: use symlinks
-#
 set -x
 here=$(cd "$(dirname "$0")" && pwd)
 me=$(basename "$0")
 
-die() {
-    echo "$me: *** ERROR: $*"
-    exit 1
-}
-
-ORG=${DOCKER_RUN_ORG:-project-chip}
-
-GHCR_ORG="ghcr.io"
-
-FULL_IMAGE_NAME=$(basename "$(pwd)")
-
-# version
-
-# where
-RUN_DIR=${DOCKER_RUN_DIR:-$(pwd)}
+IMAGE=chip-build-amd64
 
 help() {
     set +x
@@ -98,19 +62,22 @@ for arg in "$@"; do
     esac
 done
 
-###docker pull "$FULL_IMAGE_NAME" || "$here"/build.sh
 RUN_DIR_HOST="$here/../../"
 RUN_DIR_DOCKER="/connectedhomeip/"
 
 context=$(docker context show)
 if [ "$context" == "default" ]; then
-    uid=$(id -u)
-    gid=$(id -g)
+  uid=$(id -u)
+  gid=$(id -g)
 else # if docker desktop
-    uid=root
-    gid=root
+  uid=root
+  gid=root
 fi
 
-docker run "${runargs[@]}" --rm -it --user $uid:$gid \
+docker run --platform linux/amd64 -it --rm --user $uid:$gid \
+    --sysctl "net.ipv6.conf.all.disable_ipv6=0 net.ipv6.conf.all.accept_ra=1" \
+    "${runargs[@]}" --privileged \
     --mount "source=/var/run/docker.sock,target=/var/run/docker.sock,type=bind" \
-    -w "$RUN_DIR_DOCKER" -v "/opt:/opt" -v "$RUN_DIR_HOST:$RUN_DIR_DOCKER" "$FULL_IMAGE_NAME" "$@"
+    -w "$RUN_DIR_DOCKER" -v "/opt:/opt" -v "$RUN_DIR_HOST:$RUN_DIR_DOCKER" "$IMAGE" "$@"
+# need to add default route within container
+# ip -6 route add default via fd11:1111:1122:2222:42:acff:fe11:2 dev eth0

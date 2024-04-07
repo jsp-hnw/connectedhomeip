@@ -31,7 +31,7 @@ ORG=${DOCKER_BUILD_ORG:-project-chip}
 IMAGE=$(basename "$(pwd)")
 
 # version
-VERSION=${DOCKER_BUILD_VERSION:-$(sed 's/ .*//' version)}
+VERSION=1
 
 if [[ $OSTYPE == 'darwin'* ]]; then
     DOCKER_VOLUME_PATH=~/Library/Containers/com.docker.docker/Data/vms/0/
