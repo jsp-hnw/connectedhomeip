@@ -1,0 +1,113 @@
+FROM --platform=linux/arm/v7 ubuntu:bionic as build
+
+ARG USERNAME=humax
+ARG USER_UID=1000
+ARG USER_GID=$USER_UID
+ARG SDK_ROOT=/opt/cross
+ENV USER_HOME /home/$USERNAME
+
+RUN set -x \
+    && apt-get update -y \
+    && apt-get dist-upgrade -y \
+    && DEBIAN_FRONTEND=noninteractive apt-get install -fy --fix-missing \
+    build-essential gawk gcc g++ gfortran git texinfo bison libncurses-dev \
+    libglib2.0 openssl \
+    sudo \
+    cmake wget nano vim rsync \
+    && : # last line
+
+RUN groupadd -g $USER_GID $USERNAME \
+    && useradd -s /bin/bash -u $USER_UID -g $USER_GID -G sudo -m $USERNAME \
+    && echo $USERNAME ALL=\(root\) NOPASSWD:ALL > /etc/sudoers.d/$USERNAME \
+    && chmod 0440 /etc/sudoers.d/$USERNAME \
+    && :
+
+RUN mkdir -p $SDK_ROOT
+
+## nc 9.4.0
+# RUN wget https://sourceforge.net/projects/raspberry-pi-cross-compilers/files/Raspberry%20Pi%20GCC%20Native-Compiler%20Toolchains/Buster/GCC%209.4.0/Raspberry%20Pi%203A%2B%2C%203B%2B%2C%204/native-gcc-9.4.0-pi_3+.tar.gz
+## cc 8.3.0
+# RUN wget https://sourceforge.net/projects/raspberry-pi-cross-compilers/files/Raspberry%20Pi%20GCC%20Cross-Compiler%20Toolchains/Buster/GCC%208.3.0/Raspberry%20Pi%203A%2B%2C%203B%2B%2C%204/cross-gcc-8.3.0-pi_3+.tar.gz
+
+# RUN tar xf native-gcc-*.tar.gz
+# RUN tar xf cross-gcc-*.tar.gz
+# RUN mv native-pi-gcc* $SDK_ROOT
+# RUN mv cross-pi-gcc* $SDK_ROOT
+
+ADD native-gcc-9.4.0-pi_3+.tar.gz $SDK_ROOT
+#ADD cross-gcc-10.3.0-pi_64.tar.gz $SDK_ROOT
+ADD cross-gcc-8.3.0-pi_3+.tar.gz $SDK_ROOT
+COPY rpi-nc /root/tmp/rpi-nc
+
+RUN mkdir $SDK_ROOT/sysroot
+RUN mkdir $SDK_ROOT/sysroot/usr
+RUN mkdir $SDK_ROOT/sysroot/opt
+RUN cd $SDK_ROOT \
+    && rsync -avz --rsync-path="sudo rsync" --delete /lib sysroot \
+    && rsync -avz --rsync-path="sudo rsync" --delete /usr/include sysroot/usr \
+    && rsync -avz --rsync-path="sudo rsync" --delete /usr/lib sysroot/usr \
+    && `#rsync -avz --rsync-path="sudo rsync" --delete /opt/vc sysroot/opt ` \
+    && :
+
+# copied from ubuntu-bionic-x86_86: openssl.pc libssl.pc libcrypto.pc
+# arm-linux-gnueabihf/openssl was renamed from x86_64-linux-gnu/openssl
+COPY *.pc $SDK_ROOT/sysroot/usr/lib/arm-linux-gnueabihf/pkgconfig/
+COPY openssl/* $SDK_ROOT/sysroot/usr/include/arm-linux-gnueabihf/openssl/
+COPY arm-linux-gnueabihf/openssl/* $SDK_ROOT/sysroot/usr/include/arm-linux-gnueabihf/openssl/
+# add the following line to fix compile error
+#define G_SOURCE_FUNC(f) ((GSourceFunc) (void (*)(void)) (f))
+COPY gmain.h $SDK_ROOT/sysroot/usr/include/glib-2.0/glib/
+
+RUN wget https://raw.githubusercontent.com/abhiTronix/raspberry-pi-cross-compilers/master/utils/SSymlinker
+RUN chmod +x SSymlinker
+RUN ./SSymlinker -s $SDK_ROOT/sysroot/usr/include/arm-linux-gnueabihf/asm -d $SDK_ROOT/sysroot/usr/include
+RUN ./SSymlinker -s $SDK_ROOT/sysroot/usr/include/arm-linux-gnueabihf/gnu -d $SDK_ROOT/sysroot/usr/include
+RUN ./SSymlinker -s $SDK_ROOT/sysroot/usr/include/arm-linux-gnueabihf/bits -d $SDK_ROOT/sysroot/usr/include
+RUN ./SSymlinker -s $SDK_ROOT/sysroot/usr/include/arm-linux-gnueabihf/sys -d $SDK_ROOT/sysroot/usr/include
+RUN ./SSymlinker -s $SDK_ROOT/sysroot/usr/include/arm-linux-gnueabihf/openssl -d $SDK_ROOT/sysroot/usr/include
+RUN ./SSymlinker -s $SDK_ROOT/sysroot/usr/lib/arm-linux-gnueabihf/crtn.o -d $SDK_ROOT/sysroot/usr/lib/crtn.o
+RUN ./SSymlinker -s $SDK_ROOT/sysroot/usr/lib/arm-linux-gnueabihf/crt1.o -d $SDK_ROOT/sysroot/usr/lib/crt1.o
+RUN ./SSymlinker -s $SDK_ROOT/sysroot/usr/lib/arm-linux-gnueabihf/crti.o -d $SDK_ROOT/sysroot/usr/lib/crti.o
+
+RUN cd $SDK_ROOT/sysroot/usr/lib/arm-linux-gnueabihf && ln -sf libssl.so.1.1 libssl.so
+RUN cd $SDK_ROOT/sysroot/usr/lib/arm-linux-gnueabihf && ln -sf libcrypto.so.1.1 libcrypto.so
+RUN cd $SDK_ROOT/sysroot/usr/lib && ln -sf arm-linux-gnueabihf/Scrt1.o Scrt1.o
+RUN cd $SDK_ROOT/sysroot \
+    && wget https://raw.githubusercontent.com/abhiTronix/rpi_rootfs/master/scripts/sysroot-relativelinks.py \
+    && chmod +x sysroot-relativelinks.py \
+    && python3 sysroot-relativelinks.py .
+
+ARG VERSION=1
+FROM  --platform=linux/amd64 ubuntu:jammy
+
+ARG USERNAME=humax
+ARG USER_UID=1000
+ARG USER_GID=$USER_UID
+ARG SDK_ROOT=/opt/cross
+ENV USER_HOME /home/$USERNAME
+
+COPY --from=build $SDK_ROOT $SDK_ROOT
+
+RUN set -x \
+    && groupadd -g $USER_GID $USERNAME \
+    && useradd -m $USERNAME -s /bin/bash -u $USER_UID -g $USER_GID -G sudo -l \
+    && : # last line
+
+# ------------------------------------------------------------------------------
+# Install dependencies
+RUN set -x \
+    && apt-get update \
+    && DEBIAN_FRONTEND=noninteractive apt-get upgrade -y \
+    && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+    git gcc g++ pkg-config libssl-dev libdbus-1-dev \
+    libglib2.0-dev libavahi-client-dev ninja-build python3-venv python3-dev \
+    python3-pip unzip libgirepository1.0-dev libcairo2-dev libreadline-dev \
+    generate-ninja cmake vim nano
+
+COPY imx.py /usr/local
+COPY startup.sh /usr/local/bin
+COPY rpi-cc /root/tmp/rpi-cc
+
+ENV TOOLCHAIN_ROOT=$SDK_ROOT/cross-pi-gcc-8.3.0-2
+ENV TOOLCHAIN_SYSROOT=$SDK_ROOT/sysroot
+ENV PKG_CONFIG_PATH=${TOOLCHAIN_SYSROOT}/usr/lib/arm-linux-gnueabihf/pkgconfig
