@@ -3,7 +3,8 @@ set -x
 here=$(cd "$(dirname "$0")" && pwd)
 me=$(basename "$0")
 
-IMAGE=chip-build-amd64
+IMAGE=$(basename $here)-sysroot
+OPT_ROOT=/opt/$(basename $here)
 
 help() {
     set +x
@@ -67,17 +68,15 @@ RUN_DIR_DOCKER="/connectedhomeip/"
 
 context=$(docker context show)
 if [ "$context" == "default" ]; then
-  uid=$(id -u)
-  gid=$(id -g)
+    user=$USER
+    home=$HOME
 else # if docker desktop
-  uid=root
-  gid=root
+    user=root
+    home=/root
 fi
 
-docker run --platform linux/amd64 -it --rm --user $uid:$gid \
-    --sysctl "net.ipv6.conf.all.disable_ipv6=0 net.ipv6.conf.all.accept_ra=1" \
+docker run --platform=linux/arm64 -it --rm --user $user \
     "${runargs[@]}" --privileged \
-    --mount "source=/var/run/docker.sock,target=/var/run/docker.sock,type=bind" \
-    -w "$RUN_DIR_DOCKER" -v "/opt:/opt" -v "$RUN_DIR_HOST:$RUN_DIR_DOCKER" "$IMAGE" "$@"
-# need to add default route within container
-# ip -6 route add default via fd11:1111:1122:2222:42:acff:fe11:2 dev eth0
+    -w "$RUN_DIR_DOCKER" \
+    -v "$RUN_DIR_HOST:$RUN_DIR_DOCKER" \
+    "$IMAGE" "$@"

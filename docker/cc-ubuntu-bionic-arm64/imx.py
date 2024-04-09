@@ -167,11 +167,19 @@ class IMXBuilder(GnBuilder):
                 "-I{toolchain_sysroot}/usr/include/",\
                 "-I{toolchain_sysroot}/usr/include/glib-2.0",\
                 "-Wl,-rpath-link,{toolchain_sysroot}/lib/",\
+                "-Wl,-rpath-link,{toolchain_sysroot}/lib/aarch64-linux-gnu/",\
                 "-Wl,-rpath-link,{toolchain_sysroot}/usr/lib/",\
+                "-Wl,-rpath-link,{toolchain_sysroot}/usr/lib/aarch64-linux-gnu/",\
                 ]',
             f'target_ldflags=[\
                 "-L{toolchain_sysroot}/lib/",\
+                "-L{toolchain_sysroot}/lib/aarch64-linux-gnu/",\
                 "-L{toolchain_sysroot}/usr/lib/",\
+                "-L{toolchain_sysroot}/usr/lib/aarch64-linux-gnu/",\
+                "-Wl,-rpath-link,{toolchain_sysroot}/lib/",\
+                "-Wl,-rpath-link,{toolchain_sysroot}/lib/aarch64-linux-gnu/",\
+                "-Wl,-rpath-link,{toolchain_sysroot}/usr/lib/",\
+                "-Wl,-rpath-link,{toolchain_sysroot}/usr/lib/aarch64-linux-gnu/",\
                 ]',
             f'target_cc="{toolchain_root}/bin/aarch64-linux-gnu-gcc"',
             f'target_cxx="{toolchain_root}/bin/aarch64-linux-gnu-g++"',
