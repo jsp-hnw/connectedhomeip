@@ -76,6 +76,11 @@ RUN cd $SDK_ROOT/sysroot \
     && wget https://raw.githubusercontent.com/abhiTronix/rpi_rootfs/master/scripts/sysroot-relativelinks.py \
     && chmod +x sysroot-relativelinks.py \
     && python3 sysroot-relativelinks.py .
+# workaround to fix mismatch issue between libc.so.6 versions
+# $SDK_ROOT/cross-pi-gcc-8.3.0-2/arm-linux-gnueabihf/libc/lib/libc.so.6 -> libc-2.28.so
+# $SDK_ROOT/sysroot/lib/arm-linux-gnueabihf/libc.so.6 -> libc-2.27.so
+# gcc select libc-2.28.so when linking -> causes runtime error
+RUN cd $SDK_ROOT/cross-pi-gcc-8.3.0-2/arm-linux-gnueabihf/libc && mv lib lib-save
 
 ARG VERSION=1
 FROM  --platform=linux/amd64 ubuntu:jammy
