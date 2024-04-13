@@ -166,6 +166,7 @@ class IMXBuilder(GnBuilder):
                 "-I{toolchain_sysroot}/include",\
                 "-I{toolchain_sysroot}/usr/include/",\
                 "-I{toolchain_sysroot}/usr/include/glib-2.0",\
+                "-I{toolchain_sysroot}/usr/lib/arm-linux-gnueabihf/glib-2.0/include",\
                 "-Wl,-rpath-link,{toolchain_sysroot}/lib/",\
                 "-Wl,-rpath-link,{toolchain_sysroot}/lib/arm-linux-gnueabihf/",\
                 "-Wl,-rpath-link,{toolchain_sysroot}/usr/lib/",\
