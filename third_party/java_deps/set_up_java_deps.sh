@@ -17,6 +17,7 @@
 #
 
 set -e
+set -x
 
 mkdir -p third_party/java_deps/artifacts
 
@@ -31,6 +32,21 @@ function download_jar() {
             -o "third_party/java_deps/artifacts/$_JAR_NAME"
     fi
 }
+
+# humax added
+function download_jar2() {
+    _HOST=$1
+    _MAVEN_PATH=$2
+    _JAR_NAME=$3
+
+    # if [ ! -f "third_party/java_deps/artifacts/$_JAR_NAME" ]; then
+    curl --fail --location --silent --show-error \
+        "https://$_HOST/$_MAVEN_PATH/$_JAR_NAME" \
+        -o "third_party/java_deps/artifacts/$_JAR_NAME"
+    # fi
+}
+
+download_jar2 "maven.google.com" "androidx/annotation/annotation/1.1.0" "annotation-1.1.0.jar"
 
 download_jar "repo1.maven.org" "com/google/code/findbugs/jsr305/3.0.2" "jsr305-3.0.2.jar"
 download_jar "repo1.maven.org" "com/google/code/gson/gson/2.9.1" "gson-2.9.1.jar"

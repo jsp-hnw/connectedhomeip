@@ -40,6 +40,9 @@ source scripts/activate.sh
 # Set up JARs
 python3 third_party/android_deps/set_up_android_deps.py
 
+# humax added
+third_party/java_deps/set_up_java_deps.sh
+
 # Build CMake for Android Studio
 echo "build ide"
 gn gen --check --fail-on-unused-args out/"android_$TARGET_CPU" --args="target_os=\"android\" target_cpu=\"$TARGET_CPU\" android_ndk_root=\"$ANDROID_NDK_HOME\" android_sdk_root=\"$ANDROID_HOME\"" --ide=json --json-ide-script=//scripts/examples/gn_to_cmakelists.py
