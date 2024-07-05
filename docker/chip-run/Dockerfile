@@ -1,5 +1,7 @@
 # This minimal build image is intentionally not based on chip-build
 FROM ubuntu:jammy
+
+ARG CHIPTOOL_PATH=amd64
 RUN set -x \
     && apt-get update \
     && DEBIAN_FRONTEND=noninteractive apt-get upgrade -y \
@@ -8,5 +10,8 @@ RUN set -x \
     && apt-get purge -y --auto-remove \
     && rm -rf /var/lib/apt/lists/* 
 
-# COPY rootnode_dimmablelight_bCwGYSDpoe /sbin/
-# COPY chip-tool /sbin/
+COPY ${CHIPTOOL_PATH}/chip-tool /sbin/
+COPY entrypoint/entrypoint.sh /sbin/
+
+# Set entrypoint
+ENTRYPOINT ["/bin/bash", "-c", "/sbin/entrypoint.sh"]
