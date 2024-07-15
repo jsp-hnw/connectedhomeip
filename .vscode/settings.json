@@ -117,7 +117,9 @@
         "random": "cpp",
         "thread": "cpp",
         "variant": "cpp",
-        "any": "cpp"
+        "any": "cpp",
+        "*.conf": "bitbake",
+        "*.inc": "bitbake"
     },
     // Configure paths or glob patterns to exclude from file watching.
     "files.watcherExclude": {
@@ -175,5 +177,9 @@
     "[python]": {
         "editor.defaultFormatter": "ms-python.autopep8"
     },
-    "python.formatting.provider": "none"
+    "python.formatting.provider": "none",
+    "python.autoComplete.extraPaths": [
+        "${workspaceFolder}/sources/poky/bitbake/lib",
+        "${workspaceFolder}/sources/poky/meta/lib"
+    ]
 }
