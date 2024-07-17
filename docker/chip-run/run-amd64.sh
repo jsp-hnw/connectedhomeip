@@ -62,8 +62,8 @@ for arg in "$@"; do
   esac
 done
 
-RUN_DIR_HOST="$here/../../"
-RUN_DIR_DOCKER="/connectedhomeip/"
+RUN_DIR_HOST="/tmp"
+RUN_DIR_DOCKER="/tmp"
 docker run --network=host --platform linux/amd64 -d --rm \
   "${runargs[@]}" --name "$IMAGE" --privileged \
   --mount "source=/var/run/docker.sock,target=/var/run/docker.sock,type=bind" \

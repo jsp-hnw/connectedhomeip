@@ -19,4 +19,4 @@ RUN cd /sbin \
 COPY entrypoint/entrypoint.sh /sbin/
 
 # Set entrypoint
-ENTRYPOINT ["/bin/bash", "-c", "/sbin/entrypoint.sh"]
+ENTRYPOINT ["/sbin/entrypoint.sh"]
